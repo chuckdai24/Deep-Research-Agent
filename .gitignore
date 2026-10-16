@@ -1,0 +1,26 @@
+# Solo local
+CLAUDE.md
+docs/
+.claude/
+
+# Sistema / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Datos, modelos y salidas pesadas (viven en /scratch del cluster)
+data/
+hf_cache/
+runs/
+run_output/
+corpus_datasets/
+logs/
+*.index
+*.jsonl.gz
