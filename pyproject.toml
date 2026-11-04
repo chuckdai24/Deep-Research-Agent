@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trqa"
+version = "0.1.0"
+description = "Total Recall QA (TRQA) experiments: baseline reproduction and our own deep research agent"
+requires-python = ">=3.10"
+dependencies = [
+    "datasets>=4.5",
+    "faiss-cpu>=1.13",
+    "numpy>=2.4",
+    "torch>=2.10",
+    "tqdm>=4.67",
+    "transformers>=5.1",
+]
+
+[project.optional-dependencies]
+# 开发工具：pip install -e ".[dev]"
+dev = [
+    "pytest>=8",
+    "ruff>=0.15",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ---------------------------------------------------------------------------
+# 单元测试：pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+# ---------------------------------------------------------------------------
+# 代码格式与检查：ruff（ruff format 与 black 风格兼容）
+#   ruff format .          自动格式化
+#   ruff check . --fix     检查并自动修复能修的问题
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["external"]   # 官方仓库不归我们管
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle：基础风格
+    "F",        # pyflakes：未使用的 import / 变量、未定义的名字
+    "I",        # isort：import 排序
+    "B",        # flake8-bugbear：常见的潜在 bug
+    "UP",       # pyupgrade：使用较新的 Python 写法
+]

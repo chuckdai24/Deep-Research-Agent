@@ -24,3 +24,13 @@ corpus_datasets/
 logs/
 *.index
 *.jsonl.gz
+
+# Python packaging / tools
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+*.memmap
+
+# Results: keep folder structure only, add result files with git add -f
+results/*
+!results/.gitkeep
