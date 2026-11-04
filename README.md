@@ -22,7 +22,7 @@ Retrieval is therefore evaluated with **entity-level recall**: how many of the r
 .
 ├── external/
 │   └── total-recall-qa/   Official repo (git submodule): dataset, index builder, official answer metric
-├── src/trqa/
+├── src/dra/
 │   ├── config.py          Paths and default hyperparameters (the only file to edit when moving machines)
 │   ├── data.py            Read/write queries, qrels, corpus and TREC run files; the two lookup tables
 │   ├── evaluation.py      Entity Recall@k; loads the official answer metric
@@ -59,7 +59,7 @@ pip install -e .
 pip install -r external/total-recall-qa/evaluation_requirements.txt
 ```
 
-`pip install -e .` installs `trqa` in editable mode, so changes in `src/` take effect without reinstalling.
+`pip install -e .` installs `dra` in editable mode, so changes in `src/` take effect without reinstalling.
 
 ### Data
 
@@ -88,7 +88,7 @@ python scripts/04_evaluate_retrieval.py             # -> results/eval/
 python scripts/05_generate_answers.py --limit 5     # -> results/generation/, try a few queries first
 ```
 
-Every script supports `-h`; defaults come from `src/trqa/config.py`.
+Every script supports `-h`; defaults come from `src/dra/config.py`.
 
 ### Development
 
@@ -110,12 +110,12 @@ Run all three before every commit. Configuration is in `pyproject.toml`; `extern
  queries ──03── Contriever encoding ──> inner-product top-1000 ──passage_ids──> doc_id ranking (TREC run)
                                                                                   │
                                      04 entity-level R@k (vs. qrels) ◄────────────┤
-                                     05 top-50 texts ─id_to_text─> LLM ─> <answer> ─> scoring
+                                     05 top-50 texts ─id_to_passage─> LLM ─> <answer> ─> scoring
 ```
 
 Two lookup tables:
 - `passage_ids` (index position → doc_id): FAISS only returns vector positions, which must be mapped to doc_ids to compare with qrels.
-- `id_to_text` (doc_id → text): the LLM reads text, not vectors, so the passages are fetched by doc_id.
+- `id_to_passage` (doc_id → passage record `{"id", "contents"}`, same format as the official retriever): the LLM reads text, not vectors, so the passages are fetched by doc_id.
 
 ### Current results
 
@@ -156,7 +156,7 @@ TRQA 的问题需要"找全"所有相关实体后再做聚合计算，例如：
 .
 ├── external/
 │   └── total-recall-qa/   官方仓库（git submodule）：数据集、建索引脚本、官方判分函数
-├── src/trqa/
+├── src/dra/
 │   ├── config.py          路径与默认超参数（换机器只改这里）
 │   ├── data.py            queries / qrels / 语料 / TREC run 读写，两张映射表
 │   ├── evaluation.py      Entity Recall@k；加载官方答案判分函数
@@ -192,7 +192,7 @@ pip install -e .
 pip install -r external/total-recall-qa/evaluation_requirements.txt
 ```
 
-`pip install -e .` 以可编辑模式安装 `trqa`，修改 `src/` 后立即生效，不用重新安装。
+`pip install -e .` 以可编辑模式安装 `dra`，修改 `src/` 后立即生效，不用重新安装。
 
 ### 数据
 
@@ -221,7 +221,7 @@ python scripts/04_evaluate_retrieval.py             # -> results/eval/
 python scripts/05_generate_answers.py --limit 5     # -> results/generation/，先小规模试跑
 ```
 
-所有脚本都支持 `-h` 查看参数，默认值来自 `src/trqa/config.py`。
+所有脚本都支持 `-h` 查看参数，默认值来自 `src/dra/config.py`。
 
 ### 开发
 
@@ -243,12 +243,12 @@ ruff check . --fix          # 代码检查，并自动修复能修的问题
  queries ──03── Contriever 编码 ──> 内积搜索 Top-1000 ──passage_ids──> doc_id 排名 (TREC run)
                                                                           │
                                        04 实体级 R@k (对比 qrels) ◄────────┤
-                                       05 Top-50 原文 ─id_to_text─> LLM ─> <answer> ─> 判分
+                                       05 Top-50 原文 ─id_to_passage─> LLM ─> <answer> ─> 判分
 ```
 
 两张映射表：
 - `passage_ids`（索引位置 → doc_id）：FAISS 只返回"第几个向量"，需要翻译成 doc_id 才能和 qrels 对比。
-- `id_to_text`（doc_id → 原文）：LLM 读的是文字而不是向量，要用 doc_id 取回原文。
+- `id_to_passage`（doc_id → 段落记录 `{"id", "contents"}`，与官方检索器格式相同）：LLM 读的是文字而不是向量，要用 doc_id 取回原文。
 
 ### 当前结果
 

@@ -41,6 +41,8 @@ PASSAGE_IDS_CACHE = INDEX_DIR / "passage_ids.txt"
 # 本仓库的实验输出（检索结果、评估结果、生成答案）
 OUTPUT_DIR = REPO_ROOT / "results"
 DEFAULT_RUN_FILE = OUTPUT_DIR / "runs" / "contriever_wiki2_test.trec"
+# 运行日志：每次运行脚本生成一个带时间戳的日志文件
+LOG_DIR = OUTPUT_DIR / "logs"
 
 # ---------------------------------------------------------------------------
 # 模型与超参数
@@ -54,8 +56,14 @@ MAX_LENGTH = 512
 RETRIEVAL_K = 1000
 RECALL_KS = (3, 10, 100, 1000)
 
-# 阅读器（生成答案的 LLM）
-READER_MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
-READER_TOPK = 50  # 放进 prompt 的段落数
-MAX_NEW_TOKENS = 512
-TEMPERATURE = 0.7
+# 阅读器（生成答案的 LLM）：论文 Table 8 与官方 run_evalution.py 默认都是 Qwen2.5-7B-Instruct
+# 本地显存不够时可临时用 --model Qwen/Qwen2.5-1.5B-Instruct 调试
+READER_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+READER_TOPK = 50  # 放进 prompt 的段落数（论文 Table 8：K=50；官方代码默认值是 3）
+# 模型最多写多少 token：与官方 llm_generator.py 第 72 行一致（max_new_tokens=1024），
+# 留足 <think> 推理过程的长度，避免答案还没写出就被截断
+MAX_NEW_TOKENS = 1024
+TEMPERATURE = 0.7  # 与官方 SingleRetrieval.inference 的 generation_temp=0.7 一致
+
+# 随机种子：temperature > 0 时生成带随机性，固定种子才能复现（与官方 run_evalution.py 默认值一致）
+SEED = 42

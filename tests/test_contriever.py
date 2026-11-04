@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import torch
 
-from trqa.retrieval import DenseRetriever, mean_pooling
+from dra.retrieval import DenseRetriever, mean_pooling
 
 
 def test_mean_pooling_ignores_padding():

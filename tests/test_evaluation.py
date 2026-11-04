@@ -2,8 +2,8 @@
 
 import pytest
 
-from trqa import config
-from trqa.evaluation import (
+from dra import config
+from dra.evaluation import (
     entity_id,
     entity_recall_at_k,
     evaluate_retrieval,

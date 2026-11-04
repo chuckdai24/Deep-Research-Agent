@@ -1,11 +1,13 @@
 """methods/single_retrieval.py 的单元测试：prompt 构造与调用 LLM 的方式（用假 LLM）。"""
 
-from trqa.methods.single_retrieval import SingleRetrieval, build_messages
-from trqa.prompts import SYSTEM_PROMPT_SINGLE_RETRIEVAL
+from dra.methods.single_retrieval import SingleRetrieval, build_messages
+from dra.prompts import SYSTEM_PROMPT_SINGLE_RETRIEVAL
+
+PASSAGES = [{"id": "1-0001", "contents": "Alpha\nbody"}]
 
 
 def test_build_messages():
-    messages = build_messages("Who?", ["Alpha\nbody"])
+    messages = build_messages("Who?", PASSAGES)
     assert [m["role"] for m in messages] == ["system", "user"]
     assert messages[0]["content"] == SYSTEM_PROMPT_SINGLE_RETRIEVAL
     assert messages[1]["content"] == "<information>Doc 1 (Title: Alpha) body\n</information>\n\nQuestion: Who?"
@@ -22,8 +24,8 @@ class FakeLLM:
 
 def test_answer_passes_prompt_and_generation_args_to_llm():
     llm = FakeLLM()
-    raw = SingleRetrieval(llm).answer("Who?", ["Alpha\nbody"], max_new_tokens=8, temperature=0.0)
+    raw = SingleRetrieval(llm).answer("Who?", PASSAGES, max_new_tokens=8, temperature=0.0)
 
     assert raw == "<answer>1886</answer>"
-    assert llm.messages == build_messages("Who?", ["Alpha\nbody"])
+    assert llm.messages == build_messages("Who?", PASSAGES)
     assert llm.gen_kwargs == {"max_new_tokens": 8, "temperature": 0.0}

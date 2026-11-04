@@ -1,6 +1,6 @@
 """llm.py 的单元测试：输出解析（不加载 LLM）。"""
 
-from trqa.llm import extract_tag, parse_answer
+from dra.llm import extract_tag, parse_answer
 
 
 def test_extract_tag_takes_first_and_strips():

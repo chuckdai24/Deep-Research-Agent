@@ -83,7 +83,10 @@ def write_sample(corpus_path, output_path, n):
 
 
 def iter_corpus(corpus_path, desc="read corpus"):
-    """逐行读取语料 jsonl，每次产出一个 {"id", "contents"} 字典。"""
+    """
+    Read the corpus jsonl line by line, from the first line to the last; yields {"id", "contents"} dicts.
+    从第一行到最后一行逐行读取语料 jsonl，每次产出一个 {"id", "contents"} 字典。
+    """
     with open(corpus_path, encoding="utf-8") as f:
         for line in tqdm(f, desc=desc, unit=" docs"):
             yield json.loads(line)
@@ -91,18 +94,34 @@ def iter_corpus(corpus_path, desc="read corpus"):
 
 def load_passage_ids(corpus_path, cache_path=None):
     """
-    映射表 1：索引位置 -> doc_id（返回列表，下标即位置）。
+    Lookup table 1: index position -> passage id (a list; the list index is the position).
+    映射表 1：索引位置 -> 段落 id（返回列表，列表下标就是位置）。
 
-    为什么需要：FAISS 只存向量，检索返回的是"第几个向量"，必须翻译成 doc_id
-    才能和 qrels 对比。index_builder 是按语料文件的行顺序依次把向量加入索引的，
-    所以按同样顺序读语料，列表下标 i 就对应索引里第 i 个向量。
+    Why: FAISS only stores vectors, so a search returns "the i-th vector", which has to be mapped
+    to a passage id before it can be compared with the qrels.
+    为什么需要：FAISS 只存向量，检索返回的是"第 i 个向量"，必须翻译成段落 id 才能和 qrels 对比。
 
-    若给了 cache_path：存在则直接读取；不存在则扫描语料后写入，下次就快了。
+    Why the order matches: the official index_builder.py (external/total-recall-qa/c2_corpus_creation/)
+    loads the corpus in file order (load_corpus, line 145), encodes it in consecutive batches and
+    concatenates them in order (encode_all, lines 487-557), then adds the whole matrix at once
+    (faiss_index.add, line 609). So index position i = corpus line i. Here the same corpus file is read
+    line by line, so passage_ids[i] = id of corpus line i as well.
+    为什么顺序能对上：官方 index_builder.py 按文件顺序读语料（load_corpus，第 145 行），
+    按顺序分批编码并依次拼接（encode_all，第 487-557 行），再把整个矩阵一次加入索引
+    （faiss_index.add，第 609 行），所以索引位置 i = 语料第 i 行。这里逐行读取同一个语料文件，
+    所以 passage_ids[i] 也 = 语料第 i 行的 id。
+
+    Therefore the corpus file must be the one the index was built from, in the same line order.
+    因此语料必须是建索引时用的那一个，行顺序也不能变。
+
+    cache_path: read it if it exists; otherwise scan the corpus (~15 s) and write it for next time.
+    cache_path：存在就直接读；不存在就扫描语料（约 15 秒）后写入，下次直接读。
     """
     if cache_path is not None and Path(cache_path).exists():
         with open(cache_path, encoding="utf-8") as f:
             return [line.rstrip("\n") for line in f]
 
+    # One id per corpus line, in order / 每行语料取一个 id，按顺序
     passage_ids = [doc["id"] for doc in iter_corpus(corpus_path, desc="build passage_ids")]
 
     if cache_path is not None:
@@ -111,28 +130,33 @@ def load_passage_ids(corpus_path, cache_path=None):
     return passage_ids
 
 
-def load_passage_texts(corpus_path, wanted_ids=None):
+def load_passages(corpus_path, wanted_ids=None):
     """
-    映射表 2：doc_id -> 原文 contents。
+    Lookup table 2: passage id -> passage record {"id": ..., "contents": "title\\ntext"}.
+    映射表 2：段落 id -> 段落记录 {"id": ..., "contents": "标题\\n正文"}。
 
-    为什么需要：生成阶段 LLM 读的是文字而不是向量，要用 doc_id 取回原文。
-    wanted_ids 不为空时只保留这些 id 的原文（生成只需要 Top-k 段落），
-    避免把 591 万段落全部放进内存。
+    Why: the LLM reads text, not vectors, so the passages are fetched by id.
+    为什么需要：生成阶段 LLM 读的是文字而不是向量，要用段落 id 取回原文。
+
+    Each record is the corpus line as is, i.e. the same dict the official retriever returns
+    (load_docs in external/total-recall-qa/c5_task_evaluation/src/retrieval_models_local.py),
+    so it can be passed to the prompt exactly like in the official code.
+    每条记录就是语料里的那一行原样，与官方检索器返回的字典相同（官方 load_docs），
+    所以放进 prompt 的方式和官方代码完全一致。
+
+    With wanted_ids only those passages are kept (generation needs only the top-k), instead of
+    holding all 5.9M passages in memory; scanning stops once all of them are found.
+    给了 wanted_ids 时只保留这些段落（生成只需要前 k 个），不必把 591 万段落都放进内存；
+    全部找齐后提前停止扫描。
     """
     wanted = set(wanted_ids) if wanted_ids is not None else None
-    texts = {}
-    for doc in iter_corpus(corpus_path, desc="load passage texts"):
+    passages = {}
+    for doc in iter_corpus(corpus_path, desc="load passages"):
         if wanted is None or doc["id"] in wanted:
-            texts[doc["id"]] = doc["contents"]
-            if wanted is not None and len(texts) == len(wanted):
-                break  # 需要的都找到了，提前结束扫描
-    return texts
-
-
-def split_title(contents):
-    """把 "title\\ncontents" 拆回 (title, text)。"""
-    title, _, text = contents.partition("\n")
-    return title, text
+            passages[doc["id"]] = doc
+            if wanted is not None and len(passages) == len(wanted):
+                break  # all found, stop scanning / 需要的都找到了，提前结束扫描
+    return passages
 
 
 # ---------------------------------------------------------------------------

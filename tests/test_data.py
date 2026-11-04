@@ -2,13 +2,12 @@
 
 import json
 
-from trqa.data import (
+from dra.data import (
     load_passage_ids,
-    load_passage_texts,
+    load_passages,
     load_qrels,
     load_queries,
     read_trec_run,
-    split_title,
     write_trec_run,
 )
 
@@ -75,16 +74,12 @@ def test_load_passage_ids_follows_corpus_order_and_caches(tmp_path):
     assert load_passage_ids(corpus, cache_path=cache) == expected
 
 
-def test_load_passage_texts_only_wanted_ids(tmp_path):
+def test_load_passages_only_wanted_ids(tmp_path):
     corpus = tmp_path / "corpus.jsonl"
     write_jsonl(corpus, CORPUS)
 
-    texts = load_passage_texts(corpus, wanted_ids=["20-0001", "10-0001"])
-    assert texts == {"10-0001": "Alpha\nfirst passage", "20-0001": "Beta\nthird passage"}
+    # 返回语料里的整条记录（字典），与官方检索器的格式相同
+    passages = load_passages(corpus, wanted_ids=["20-0001", "10-0001"])
+    assert passages == {"10-0001": CORPUS[0], "20-0001": CORPUS[2]}
 
-    assert len(load_passage_texts(corpus)) == 3
-
-
-def test_split_title():
-    assert split_title("Alpha\nbody\nmore") == ("Alpha", "body\nmore")
-    assert split_title("only title") == ("only title", "")
+    assert len(load_passages(corpus)) == 3
