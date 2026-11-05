@@ -17,11 +17,19 @@
 # Environment variables do not work in them, hence the relative output path (relative to where you run sbatch).
 # 以 #SBATCH 开头的行由 SLURM 读取（申请资源），bash 当作注释。
 # 这些行里不能用环境变量，所以输出路径写成相对路径（相对于运行 sbatch 的目录）。
+#
+# Memory: 03 reads the whole 18 GB index into memory, ~21 GB in total. The default QOS (csedu-small) allows
+# at most 15 GB per job, so we use csedu-normal (max per job: 12 CPUs, 2 GPUs, 31 GB, 12 h).
+# Check the limits with: sacctmgr show qos format=Name%20,MaxTRES%40,MaxWall
+# 内存：03 会把 18 GB 的索引整个读进内存，总共约 21 GB。默认的 QOS（csedu-small）每个作业最多 15 GB，
+# 所以用 csedu-normal（每个作业最多 12 个 CPU、2 块 GPU、31 GB、12 小时）。
+# 查看限制：sacctmgr show qos format=Name%20,MaxTRES%40,MaxWall
 #SBATCH --partition=csedu
 #SBATCH --account=csedui00041
+#SBATCH --qos=csedu-normal
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=6
-#SBATCH --mem=40G
+#SBATCH --mem=30G
 #SBATCH --time=01:00:00
 #SBATCH --job-name=step1_1_retrieval
 #SBATCH --output=results/%x-%j.out
