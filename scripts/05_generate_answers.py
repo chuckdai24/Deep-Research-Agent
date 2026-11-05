@@ -17,12 +17,15 @@ tolerance (Table 8 reports EM and SM 10/20/50/90).
 
 Output / 输出：
     <output>               jsonl, one line per question: question, gold answer, the model's full output,
-                           the extracted answer and the scores. Written line by line, so finished
-                           questions survive a crash.
-                           每题一行：问题、标准答案、模型完整输出、取出的答案、判分。逐行写入，
-                           中途崩溃时已完成的题不会丢失。
-    <output>_summary.json  EM and SM in %, questions without <answer>, seconds per question
-                           EM 和 SM（%）、没有 <answer> 的题数、每题耗时
+                           the extracted answer, the scores, and for analysis: has_answer_tag,
+                           num_passages, prompt_tokens, output_tokens, hit_max_new_tokens, seconds.
+                           Written line by line, so finished questions survive a crash.
+                           每题一行：问题、标准答案、模型完整输出、取出的答案、判分，以及分析用的
+                           has_answer_tag、num_passages、prompt_tokens、output_tokens、hit_max_new_tokens、
+                           seconds。逐行写入，中途崩溃时已完成的题不会丢失。
+    <output>_summary.json  EM and SM in %, questions without <answer>, questions cut off at max_new_tokens,
+                           seconds per question
+                           EM 和 SM（%）、没有 <answer> 的题数、被 max_new_tokens 截断的题数、每题耗时
 
 Usage / 用法：
     python scripts/05_generate_answers.py --limit 5                                # first 5 questions / 先跑 5 题
@@ -41,7 +44,7 @@ from tqdm import tqdm
 from dra import config
 from dra.data import load_passages, load_queries, read_trec_run
 from dra.evaluation import load_official_answer_metric, score_answer, summarize_answer_scores
-from dra.llm import DTYPES, LLM, parse_answer, resolve_dtype
+from dra.llm import DTYPES, LLM, extract_tag, parse_answer, resolve_dtype
 from dra.logging_utils import log_args, setup_logging
 from dra.methods.single_retrieval import SingleRetrieval
 from dra.utils import set_seed
@@ -183,6 +186,7 @@ def main():
     args.output.parent.mkdir(parents=True, exist_ok=True)
     scores = []  # score_answer result of every question / 每道题的 score_answer 结果
     n_no_answer = 0  # questions without an <answer> tag (and no fallback) / 没有 <answer> 标签（且未用 fallback）的题数
+    n_truncated = 0  # questions cut off at max_new_tokens / 达到 max_new_tokens 被截断的题数
     start = time.time()
     with open(args.output, "w", encoding="utf-8") as f:
         # 4. Answer the questions one by one. tqdm shows a progress bar; enumerate(start=1) gives i = 1, 2, ...
@@ -195,6 +199,7 @@ def main():
 
             # b. The LLM writes its answer, e.g. "<think>...</think><answer>1886</answer>". Slowest step.
             #    模型写出回答，例如 "<think>...</think><answer>1886</answer>"。最慢的一步。
+            q_start = time.time()
             raw = method.answer(
                 q["question"],
                 passages,
@@ -216,6 +221,7 @@ def main():
             #    保存判分用于汇总；True 当作 1，所以没有答案时才加 1。
             scores.append(score)
             n_no_answer += pred is None
+            n_truncated += llm.last_usage["hit_max_new_tokens"]
 
             # f. Write one line for this question. **score unpacks it into "exact_match" and "soft_matches" keys
             #    (json writes the tolerance keys as strings, e.g. "10.0", like the official results);
@@ -233,6 +239,14 @@ def main():
                         "prediction": pred,
                         "raw_output": raw,
                         **score,
+                        # For analysis: whether the official <answer> tag is there (independent of --answer_fallback),
+                        # how many passages went into the prompt, token counts (llm.last_usage) and time.
+                        # 分析用：有没有官方要求的 <answer> 标签（与 --answer_fallback 无关）、prompt 里放了几个段落、
+                        # token 数（llm.last_usage）和用时。
+                        "has_answer_tag": extract_tag(raw, "answer") is not None,
+                        "num_passages": len(passages),
+                        **llm.last_usage,
+                        "seconds": round(time.time() - q_start, 2),
                     },
                     ensure_ascii=False,
                 )
@@ -253,11 +267,13 @@ def main():
     #    汇总：把判分平均，记进日志，并写到逐题结果旁边。
     summary = summarize_answer_scores(scores, tolerances)
     summary["no_answer_tag"] = n_no_answer
+    summary["hit_max_new_tokens"] = n_truncated
     summary["seconds_per_question"] = (time.time() - start) / max(len(queries), 1)
     logger.info("Exact match: %.2f%%", summary["exact_match"])
     for pct in tolerances:
         logger.info("Soft match %4.0f%%: %.2f%%", pct, summary["soft_match"][pct])
     logger.info("No <answer> tag: %d/%d", n_no_answer, len(queries))
+    logger.info("Cut off at max_new_tokens=%d: %d/%d", args.max_new_tokens, n_truncated, len(queries))
     logger.info("Time: %.1f s/question", summary["seconds_per_question"])
 
     summary_path = args.output.with_name(args.output.stem + "_summary.json")

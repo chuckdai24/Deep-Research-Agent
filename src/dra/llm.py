@@ -65,6 +65,9 @@ class LLM:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         # .eval(): inference mode (e.g. turns off dropout).   .eval()：推理模式（例如关闭 dropout）。
         self.model = AutoModelForCausalLM.from_pretrained(model_name, dtype=dtype, device_map="auto").eval()
+        # Token counts of the last generate call (see generate, step 5).
+        # 最近一次 generate 的 token 数（见 generate 第 5 步）。
+        self.last_usage = None
 
     # Decorator: while this function runs, PyTorch does not record the computation for training
     # (no gradients), which saves GPU memory and time. We only use the model, never train it.
@@ -115,6 +118,16 @@ class LLM:
         #    outputs[0] 是"输入 prompt + 新写的 token"连在一起；切掉 prompt 部分，把剩下的变回文字。
         #    skip_special_tokens=True 去掉 <|im_end|> 这类特殊标记。
         new_tokens = outputs[0][inputs["input_ids"].shape[1] :]
+
+        # 5. Token counts of this call, for the per-question records. If output_tokens reaches max_new_tokens,
+        #    the model was cut off before it finished (it did not write its end-of-turn token).
+        #    这次调用的 token 数，写进逐题记录。output_tokens 达到 max_new_tokens 表示模型还没写完就被截断了
+        #    （没有写出结束标记）。
+        self.last_usage = {
+            "prompt_tokens": inputs["input_ids"].shape[1],
+            "output_tokens": len(new_tokens),
+            "hit_max_new_tokens": len(new_tokens) >= max_new_tokens,
+        }
         return self.tokenizer.decode(new_tokens, skip_special_tokens=True)
 
 
