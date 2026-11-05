@@ -10,7 +10,7 @@ requires-python = ">=3.10"
 dependencies = [
     "datasets>=4.5",
     "faiss-cpu>=1.13",
-    "numpy>=2.4",
+    "numpy>=1.26",  # numpy >= 2.3 needs Python >= 3.11; the csedu cluster has Python 3.10
     "torch>=2.10",
     "tqdm>=4.67",
     "transformers>=5.1",

@@ -48,9 +48,12 @@ def setup_logging(name, log_dir, level=logging.INFO):
     root.addHandler(console_handler)
     root.addHandler(file_handler)
 
-    # huggingface_hub logs every HTTP request at INFO level; keep only its warnings.
-    # huggingface_hub 会在 INFO 级别记录每个 HTTP 请求，只保留它的警告。
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+    # Libraries that log routine details at INFO level (huggingface_hub: every HTTP request,
+    # faiss: which CPU instruction set it loaded); keep only their warnings.
+    # 这些库会在 INFO 级别记录日常细节（huggingface_hub：每个 HTTP 请求；faiss：加载了哪种 CPU 指令集），
+    # 只保留它们的警告。
+    for noisy in ("httpx", "faiss"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
 
     logger = logging.getLogger(name)
 

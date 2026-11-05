@@ -69,8 +69,22 @@ def main():
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=32,
-        help="questions encoded per batch / 每批编码的问题数",
+        default=config.QUERY_BATCH_SIZE,
+        help="questions encoded per batch (official: 512) / 每批编码的问题数（官方：512）",
+    )
+    parser.add_argument(
+        "--max_length",
+        type=int,
+        default=config.QUERY_MAX_LENGTH,
+        help="max tokens per question (official: 64) / 每个问题最多多少 token（官方：64）",
+    )
+    # BooleanOptionalAction gives both --fp16 and --no-fp16; the default (True) matches the official code.
+    # BooleanOptionalAction 同时提供 --fp16 和 --no-fp16 两个开关；默认 True，与官方一致。
+    parser.add_argument(
+        "--fp16",
+        action=argparse.BooleanOptionalAction,
+        default=config.QUERY_USE_FP16,
+        help="encode questions in half precision on the GPU (official: yes) / 在 GPU 上用半精度编码问题（官方：是）",
     )
     parser.add_argument(
         "--output",
@@ -105,7 +119,11 @@ def main():
     #    准备工具（还没有开始检索）：
     #    encoder   加载 Contriever，把文字变成 768 维向量
     #    retriever 把 18 GB 索引读进内存，并检查向量数与 passage_ids 长度一致
-    encoder = ContrieverEncoder(args.model, max_length=config.MAX_LENGTH)
+    #    Query settings (max length 64, fp16, batch 512) match the official retrieval code.
+    #    问题的编码设置（最长 64、fp16、每批 512）与官方检索代码一致。
+    encoder = ContrieverEncoder(args.model, max_length=args.max_length, use_fp16=args.fp16)
+    if args.fp16 and not encoder.use_fp16:
+        logger.warning("No GPU: questions are encoded in fp32 instead of fp16; scores may differ very slightly")
     retriever = DenseRetriever(args.index_path, passage_ids, encoder)
     logger.info("Index vectors: %d", retriever.index.ntotal)  # should be 5,910,177 / 应为 5910177
 

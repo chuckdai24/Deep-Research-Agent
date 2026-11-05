@@ -2,12 +2,20 @@
 Step 1: prepare the corpus.
 步骤 1：准备语料。
 
-Download the wiki_partial corpus (5.91M passages) from HuggingFace (mahtaa/trqa) and convert it
-into the jsonl format expected by the official index_builder: {"id": ..., "contents": "title\\ncontents"}.
+Download the wiki_partial corpus (5.91M passages) from HuggingFace (mahtaa/trqa) and save it as jsonl
+in its original format: {"id", "title", "section", "contents"} per line (see dra.data.export_corpus for why).
 Optionally also write a small sample, to test index building on a small corpus first.
-从 HuggingFace（mahtaa/trqa）下载 wiki_partial 语料（591 万段落），转换成官方 index_builder
-需要的 jsonl 格式：{"id": ..., "contents": "title\\ncontents"}。
+从 HuggingFace（mahtaa/trqa）下载 wiki_partial 语料（591 万段落），按原始格式存成 jsonl：
+每行一条 {"id", "title", "section", "contents"}（原因见 dra.data.export_corpus）。
 可选再切一个小样本，先在小数据上调通建索引流程。
+
+When is this step needed? / 什么时候需要运行这一步？
+    - On the csedu cluster: NOT needed. The course already provides the same corpus at
+      /vol/csedu-nobackup/course/I00041_informationretrieval/shared/trqa/data/shared/
+      corpus_wikipedia_en-20251001_rewritten_partial.jsonl  (pass it to the other steps with --corpus_path).
+    - Anywhere else without that file (e.g. a laptop): run it once to download the corpus.
+    - 在 csedu 集群上：不需要。课程已经提供了同一份语料（路径见上，用 --corpus_path 传给其他步骤）。
+    - 在其他没有这个文件的地方（比如自己的电脑）：运行一次，下载语料。
 
 If the corpus file already exists, the download is skipped (use --overwrite to force it).
 语料文件已存在时跳过下载（加 --overwrite 强制重新下载）。

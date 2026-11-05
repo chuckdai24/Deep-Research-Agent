@@ -41,8 +41,14 @@ QRELS_PATH = OFFICIAL_REPO / "dataset" / "TRQA" / "wiki2" / "test" / "trec_qrels
 # 默认是仓库内的 data/；如果数据已在别处，设置环境变量 TRQA_DATA_DIR 指过去即可，不用拷贝。
 DATA_DIR = Path(os.environ.get("TRQA_DATA_DIR", REPO_ROOT / "data"))
 
-# Partial Wikipedia corpus (~5.91M passages), one {"id", "contents": "title\ncontents"} per line.
-# 部分维基语料（约 591 万段落），每行一个 {"id", "contents": "标题\n正文"}。
+# Partial Wikipedia corpus (~5.91M passages), one {"id", "title", "section", "contents"} record per line
+# (original format, as written by step 1). Files in the older {"id", "contents": "title\ncontents"} format also work.
+# On csedu the course already provides it (use --corpus_path):
+#   /vol/csedu-nobackup/course/I00041_informationretrieval/shared/trqa/data/shared/
+#   corpus_wikipedia_en-20251001_rewritten_partial.jsonl
+# 部分维基语料（约 591 万段落），每行一条 {"id", "title", "section", "contents"} 记录（原始格式，由步骤 1 写出）。
+# 旧格式 {"id", "contents": "标题\n正文"} 的文件也能用。
+# csedu 上课程已经提供了这个语料（见上面的路径，用 --corpus_path 指定）。
 CORPUS_PATH = DATA_DIR / "wiki_partial_corpus.jsonl"
 
 # Contriever + FAISS Flat index (built by step 2).
@@ -70,7 +76,17 @@ LOG_DIR = OUTPUT_DIR / "logs"
 # Retriever: must be the model the index was built with (the official index_builder maps "contriever" to it).
 # 检索器：必须与建索引时用的模型一致（官方 index_builder 中 contriever 对应此模型）。
 RETRIEVER_MODEL = "facebook/contriever-msmarco"
-MAX_LENGTH = 512  # max tokens per text, same as the official index_builder / 每段文字最多取多少 token，与官方一致
+# Max tokens per PASSAGE when building the index (step 2), same as the official index_builder.py.
+# 建索引（步骤 2）时每个【段落】最多取多少 token，与官方 index_builder.py 一致。
+MAX_LENGTH = 512
+
+# Query encoding at retrieval time (step 3), same as the official run_evalution.py lines 1302-1305:
+# questions are cut to 64 tokens, encoded in half precision (fp16, GPU only), 512 per batch.
+# 检索（步骤 3）时编码【问题】的设置，与官方 run_evalution.py 第 1302-1305 行一致：
+# 问题最多 64 个 token，用半精度（fp16，仅 GPU）编码，每批 512 个。
+QUERY_MAX_LENGTH = 64
+QUERY_USE_FP16 = True
+QUERY_BATCH_SIZE = 512
 
 # Retrieval depth: the largest k needed for R@k; the cut-offs match Table 4.
 # 检索深度：评估 R@k 需要的最大 k；各个 k 与 Table 4 一致。

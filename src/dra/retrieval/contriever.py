@@ -34,11 +34,14 @@ def mean_pooling(last_hidden_state, attention_mask):
     """
     # unsqueeze(-1) ADDS a last dimension of size 1: (batch, tokens) -> (batch, tokens, 1).
     # When multiplied with (batch, tokens, 768), that 1 is broadcast (copied) to all 768 values,
-    # so every value of a padding token becomes 0. .float() turns the 0/1 integers into 0.0/1.0.
+    # so every value of a padding token becomes 0. .to(dtype) turns the 0/1 integers into numbers of the
+    # same precision as the model output (fp32, or fp16 with use_fp16), so the pooling is computed in that
+    # precision, exactly like the official pooling() (masked_fill on the model output).
     # unsqueeze(-1) 在最后【增加】一个大小为 1 的维度：(batch, tokens) -> (batch, tokens, 1)。
     # 和 (batch, tokens, 768) 相乘时，这个 1 会被广播（复制）到全部 768 个数，补齐位置的值都变成 0。
-    # .float() 把整数 0/1 变成小数 0.0/1.0。
-    mask = attention_mask.unsqueeze(-1).float()
+    # .to(dtype) 把整数 0/1 变成与模型输出相同精度的数（fp32，或 use_fp16 时的 fp16），
+    # 让池化在同样的精度下计算，与官方 pooling()（直接在模型输出上 masked_fill）完全一致。
+    mask = attention_mask.unsqueeze(-1).to(last_hidden_state.dtype)
     # Sum over the tokens (dim 1), then divide by the number of real tokens.
     # 在 token 维度（第 1 维）上求和，再除以真实 token 的个数。
     return (last_hidden_state * mask).sum(1) / mask.sum(1)
@@ -55,13 +58,25 @@ class ContrieverEncoder:
     equals the cosine similarity.
     问题必须和建索引时的段落用完全相同的方式编码（同一模型、同样的池化、同样的 L2 归一化），
     否则两边的向量没法比较。归一化后每个向量长度为 1，FAISS Flat 索引的内积就等于余弦相似度。
+
+    To match the official query encoder (c5_task_evaluation/src/retrieval_models_local.py, Encoder):
+    no prefix for Contriever, mean pooling, L2 normalisation, and with use_fp16 the model in half precision.
+    与官方编码问题的 Encoder 一致：Contriever 不加前缀、平均池化、L2 归一化；use_fp16 时模型用半精度。
     """
 
-    def __init__(self, model_name, device=None, max_length=512):
+    def __init__(self, model_name, device=None, max_length=512, use_fp16=False):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.max_length = max_length
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModel.from_pretrained(model_name).to(self.device).eval()
+        # Half precision (fp16), as in the official load_model(... use_fp16=True): model.half().
+        # fp16 is only used on a GPU; on the CPU it is slow or unsupported, so full precision is kept there
+        # (results may then differ very slightly from the official ones).
+        # 半精度（fp16），与官方 load_model(... use_fp16=True) 的 model.half() 一致。
+        # 只在 GPU 上使用；CPU 上 fp16 很慢或不支持，所以保持全精度（此时结果可能与官方有极细微的差别）。
+        self.use_fp16 = use_fp16 and self.device != "cpu"
+        if self.use_fp16:
+            self.model = self.model.half()
 
     @torch.no_grad()  # inference only, no gradients: faster and less memory / 只推理不训练：更快、更省显存
     def encode(self, texts, batch_size=32):

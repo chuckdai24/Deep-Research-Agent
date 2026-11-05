@@ -67,15 +67,22 @@ def load_qrels(path):
 
 def export_corpus(output_path, split="wiki_partial"):
     """
-    Download the corpus from HuggingFace (mahtaa/trqa) and convert it to the format of the official index_builder.
-    从 HuggingFace（mahtaa/trqa）下载语料，转换成官方 index_builder 需要的格式。
+    Download the corpus from HuggingFace (mahtaa/trqa) and save it as jsonl, keeping the original format.
+    从 HuggingFace（mahtaa/trqa）下载语料并存成 jsonl，保持原始格式不变。
 
-    Output, one per line: {"id": ..., "contents": "title\\ncontents"}
-    The title is put on the first line of contents because the official code (passages2string) treats the
-    first line of contents as the title; stored this way, the title can be recovered later.
-    输出每行：{"id": ..., "contents": "标题\\n正文"}
-    把标题拼在正文第一行，是因为官方代码（passages2string）约定"contents 的第一行是标题"，
-    按这个格式存，后面才能正确还原标题。
+    Output, one record per line, exactly as published by the authors:
+        {"id": ..., "title": ..., "section": [...], "contents": ...}
+    输出每行一条记录，与作者发布的原始格式完全相同（字段见上）。
+
+    Why the original format: with a separate "title" field, the official index_builder.py encodes each
+    passage as '"title"\\ntext' (lines 489-492), like the authors' own index; and our prompt code
+    (prompts.format_passages) uses the "title" field exactly like the official passages2string.
+    Earlier versions merged the title into "contents" ("title\\ncontents"); both formats work with
+    our code, but only the original one encodes passages the same way as the official index builder.
+    为什么保持原始格式：有单独的 "title" 字段时，官方 index_builder.py 会把段落编码成 '"标题"\\n正文'
+    （第 489-492 行），与作者自己建的索引一致；我们的 prompt 代码（prompts.format_passages）也像官方
+    passages2string 一样直接使用 "title" 字段。旧版本曾把标题拼进 "contents"（"标题\\n正文"），
+    两种格式我们的代码都能处理，但只有原始格式与官方建索引的编码方式一致。
 
     Returns the number of passages written. / 返回写出的段落数。
     """
@@ -87,9 +94,10 @@ def export_corpus(output_path, split="wiki_partial"):
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
+        # Write each record unchanged, in the original order (index position i = line i).
+        # 每条记录原样写出，保持原始顺序（索引位置 i = 第 i 行）。
         for doc in tqdm(corpus, desc="export corpus"):
-            record = {"id": doc["id"], "contents": f"{doc['title']}\n{doc['contents']}"}
-            f.write(json.dumps(record) + "\n")
+            f.write(json.dumps(doc) + "\n")
     return len(corpus)
 
 
