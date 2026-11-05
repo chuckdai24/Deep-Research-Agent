@@ -1,0 +1,6 @@
+# Shell scripts must keep Linux line endings (LF), even when edited on Windows; with Windows line endings
+# (CRLF) bash on the cluster fails with errors like "$'\r': command not found".
+# Shell 脚本必须保持 Linux 换行符（LF），即使在 Windows 上编辑；如果是 Windows 换行符（CRLF），
+# 集群上的 bash 会报 "$'\r': command not found" 之类的错误。
+*.sh      text eol=lf
+*.sbatch  text eol=lf

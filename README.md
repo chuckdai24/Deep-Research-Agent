@@ -38,6 +38,7 @@ Retrieval is therefore evaluated with **entity-level recall**: how many of the r
 │   ├── 03_retrieve.py            Retrieve top-K and write a TREC run file
 │   ├── 04_evaluate_retrieval.py  Compute entity-level R@k
 │   └── 05_generate_answers.py    Generate answers with RAG and score them
+├── cluster/               csedu cluster: environment, one-time setup, SLURM job scripts
 ├── results/               Experiment outputs: runs/, eval/, generation/
 ├── data/                  Corpus and index (not tracked by git, see below)
 └── pyproject.toml
@@ -89,6 +90,36 @@ python scripts/05_generate_answers.py --limit 5     # -> results/generation/, tr
 ```
 
 Every script supports `-h`; defaults come from `src/dra/config.py`.
+
+### Running on the csedu cluster
+
+On the cluster we use the **official** Contriever index (HF `mahtaa/trqa_experiments`, already downloaded by Diego)
+and the original corpus provided by the course, so steps 01 and 02 are not run. All paths are in `cluster/env.sh`.
+
+```bash
+# Once, on the login node
+ssh <user>@cnlogin22.science.ru.nl
+git clone --recurse-submodules <repo-url> ~/group18-project
+cd ~/group18-project
+bash cluster/setup.sh          # venv + dra + Contriever download, under /vol/.../users/$USER
+
+# Optional: load the environment automatically at every login
+echo "source ~/group18-project/cluster/env.sh" >> ~/.bashrc
+
+# Step 1.1 on a GPU node (never run heavy jobs on the login node)
+sbatch cluster/step1_1_retrieval.sbatch
+squeue -u $USER
+tail -f results/step1_1_retrieval-*.out
+```
+
+| File | Purpose |
+|---|---|
+| `cluster/env.sh` | Paths (course folder, personal folder from `$USER`, corpus, index), `HF_HOME`, venv activation. Source it, do not run it. |
+| `cluster/setup.sh` | One-time setup; safe to re-run. |
+| `cluster/step1_1_retrieval.sbatch` | Runs 03 + 04 with the official index -> `results/eval_official/` |
+
+Large files (venv, model cache, mapping tables) go to `/vol/csedu-nobackup/.../users/$USER`, because home is only 10 GB.
+GPU jobs run with `HF_HUB_OFFLINE=1`, so models must be downloaded first (`setup.sh` does this for Contriever).
 
 ### Development
 
@@ -172,6 +203,7 @@ TRQA 的问题需要"找全"所有相关实体后再做聚合计算，例如：
 │   ├── 03_retrieve.py            检索 Top-K，写 TREC run 文件
 │   ├── 04_evaluate_retrieval.py  计算实体级 R@k
 │   └── 05_generate_answers.py    RAG 生成答案并判分
+├── cluster/               csedu 集群：环境设置、一次性安装、SLURM 作业脚本
 ├── results/               实验输出：runs/、eval/、generation/
 ├── data/                  语料与索引（不进 git，见下文）
 └── pyproject.toml
@@ -222,6 +254,36 @@ python scripts/05_generate_answers.py --limit 5     # -> results/generation/，�
 ```
 
 所有脚本都支持 `-h` 查看参数，默认值来自 `src/dra/config.py`。
+
+### 在 csedu 集群上运行
+
+集群上用**官方**的 Contriever 索引（HF `mahtaa/trqa_experiments`，Diego 已下载）和课程提供的原始格式语料，
+所以不运行 01 和 02。所有路径都在 `cluster/env.sh` 里。
+
+```bash
+# 一次性，在登录节点上
+ssh <用户名>@cnlogin22.science.ru.nl
+git clone --recurse-submodules <本仓库地址> ~/group18-project
+cd ~/group18-project
+bash cluster/setup.sh          # 在 /vol/.../users/$USER 下创建 venv、安装 dra、下载 Contriever
+
+# 可选：每次登录自动加载环境
+echo "source ~/group18-project/cluster/env.sh" >> ~/.bashrc
+
+# 在 GPU 节点上跑 Step 1.1（重任务不要在登录节点上跑）
+sbatch cluster/step1_1_retrieval.sbatch
+squeue -u $USER
+tail -f results/step1_1_retrieval-*.out
+```
+
+| 文件 | 作用 |
+|---|---|
+| `cluster/env.sh` | 路径（课程文件夹、按 `$USER` 确定的个人文件夹、语料、索引）、`HF_HOME`、激活 venv。用 source 读入，不要直接运行。 |
+| `cluster/setup.sh` | 一次性设置；可以重复运行。 |
+| `cluster/step1_1_retrieval.sbatch` | 用官方索引运行 03 + 04 -> `results/eval_official/` |
+
+大文件（venv、模型缓存、映射表）放在 `/vol/csedu-nobackup/.../users/$USER`，因为 home 只有 10 GB。
+GPU 作业设置了 `HF_HUB_OFFLINE=1`（不联网），所以模型要先下载好（`setup.sh` 已下载 Contriever）。
 
 ### 开发
 
