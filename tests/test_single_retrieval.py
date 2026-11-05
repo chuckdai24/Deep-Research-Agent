@@ -1,4 +1,7 @@
-"""methods/single_retrieval.py 的单元测试：prompt 构造与调用 LLM 的方式（用假 LLM）。"""
+"""
+Unit tests for methods/single_retrieval.py: prompt construction and how the LLM is called (with a fake LLM).
+methods/single_retrieval.py 的单元测试：prompt 构造与调用 LLM 的方式（用假 LLM）。
+"""
 
 from dra.methods.single_retrieval import SingleRetrieval, build_messages
 from dra.prompts import SYSTEM_PROMPT_SINGLE_RETRIEVAL
@@ -14,7 +17,10 @@ def test_build_messages():
 
 
 class FakeLLM:
-    """记录收到的 messages 和生成参数，返回固定输出。"""
+    """
+    Records the messages and generation arguments it receives and returns a fixed output.
+    记录收到的 messages 和生成参数，返回固定输出。
+    """
 
     def generate(self, messages, **gen_kwargs):
         self.messages = messages

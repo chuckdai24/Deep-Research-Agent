@@ -1,11 +1,17 @@
 """
+Reading and writing data.
 数据读写。
 
-包括四类数据：
-  1. queries   —— 测试问题与标准答案（jsonl）
-  2. qrels     —— 每个问题的相关段落标注（TREC qrels 格式）
-  3. corpus    —— 维基段落语料（jsonl），以及"索引位置 -> doc_id"、"doc_id -> 原文"两张映射表
-  4. run 文件  —— 检索结果（TREC run 格式），把检索和后续评估 / 生成解耦
+Four kinds of data / 四类数据：
+  1. queries   test questions with gold answers (jsonl)
+               测试问题与标准答案（jsonl）
+  2. qrels     relevant passages per question (TREC qrels format)
+               每个问题的相关段落标注（TREC qrels 格式）
+  3. corpus    Wikipedia passages (jsonl), plus the two lookup tables
+               "index position -> passage id" and "passage id -> passage record"
+               维基段落语料（jsonl），以及"索引位置 -> 段落 id"、"段落 id -> 段落记录"两张映射表
+  4. run file  retrieval results (TREC run format), which decouples retrieval from evaluation / generation
+               检索结果（TREC run 格式），把检索和后续的评估 / 生成分开
 """
 
 import json
@@ -21,11 +27,11 @@ from tqdm import tqdm
 
 def load_queries(path):
     """
-    读取 queries jsonl。
-
-    每行形如：
+    Read the queries jsonl. Each line looks like:
+    读取 queries jsonl，每行形如：
         {"id": "13_p569", "question": "...", "answer": 1886, "src": "qald10"}
-    返回保持文件顺序的列表。
+    Returns a list in file order; empty lines are skipped.
+    返回保持文件顺序的列表；空行跳过。
     """
     with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f if line.strip()]
@@ -33,10 +39,16 @@ def load_queries(path):
 
 def load_qrels(path):
     """
-    读取 TREC qrels，每行为 "query_id iteration doc_id relevance"。
+    Read TREC qrels; each line is "query_id iteration passage_id relevance".
+    读取 TREC qrels，每行为 "query_id iteration passage_id relevance"。
 
-    返回 {query_id: 相关 passage id 的集合}，只保留 relevance > 0 的行。
+    Returns {query_id: set of relevant passage ids}, keeping only lines with relevance > 0.
+    A set, because evaluation only asks whether a passage is relevant, not in which order.
+    返回 {query_id: 相关段落 id 的集合}，只保留 relevance > 0 的行。
+    用集合，是因为评估只关心"是否相关"，不关心顺序。
     """
+    # defaultdict(set): a dict that creates an empty set the first time a new key is used.
+    # defaultdict(set)：第一次用到某个新键时，自动为它创建一个空集合。
     qrels = defaultdict(set)
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -49,18 +61,26 @@ def load_qrels(path):
 
 
 # ---------------------------------------------------------------------------
-# 语料
+# Corpus / 语料
 # ---------------------------------------------------------------------------
 
 
 def export_corpus(output_path, split="wiki_partial"):
     """
-    从 HuggingFace (mahtaa/trqa) 下载语料，转换成官方 index_builder 需要的格式。
+    Download the corpus from HuggingFace (mahtaa/trqa) and convert it to the format of the official index_builder.
+    从 HuggingFace（mahtaa/trqa）下载语料，转换成官方 index_builder 需要的格式。
 
-    输出每行：{"id": ..., "contents": "title\\ncontents"}
-    之所以把标题拼在正文第一行：index_builder 和官方 passages2string 都约定
-    "contents 的第一行是标题"，按这个格式存，后面才能正确还原标题。
+    Output, one per line: {"id": ..., "contents": "title\\ncontents"}
+    The title is put on the first line of contents because the official code (passages2string) treats the
+    first line of contents as the title; stored this way, the title can be recovered later.
+    输出每行：{"id": ..., "contents": "标题\\n正文"}
+    把标题拼在正文第一行，是因为官方代码（passages2string）约定"contents 的第一行是标题"，
+    按这个格式存，后面才能正确还原标题。
+
+    Returns the number of passages written. / 返回写出的段落数。
     """
+    # Imported here rather than at the top: only step 1 needs the datasets library.
+    # 在这里而不是文件开头导入：只有步骤 1 需要 datasets 库。
     from datasets import load_dataset
 
     corpus = load_dataset("mahtaa/trqa", "corpus", split=split)
@@ -74,7 +94,10 @@ def export_corpus(output_path, split="wiki_partial"):
 
 
 def write_sample(corpus_path, output_path, n):
-    """取语料前 n 行另存为小样本，用于快速调试建索引流程。"""
+    """
+    Copy the first n lines of the corpus into a small sample file, for quickly testing index building.
+    取语料前 n 行另存为小样本，用于快速调试建索引流程。
+    """
     with open(corpus_path, encoding="utf-8") as fin, open(output_path, "w", encoding="utf-8") as fout:
         for i, line in enumerate(fin):
             if i >= n:
@@ -160,19 +183,24 @@ def load_passages(corpus_path, wanted_ids=None):
 
 
 # ---------------------------------------------------------------------------
-# 检索结果（TREC run 文件）
+# Retrieval results (TREC run files) / 检索结果（TREC run 文件）
 # ---------------------------------------------------------------------------
 
 
 def write_trec_run(path, results, run_name="contriever"):
     """
-    把检索结果写成 TREC run 格式，每行 "qid Q0 doc_id rank score run_name"。
+    Write retrieval results in TREC run format, one line per (question, passage):
+    把检索结果写成 TREC run 格式，每行一个（题目, 段落）：
+        "qid Q0 passage_id rank score run_name"
+    ("Q0" is a fixed placeholder column of the format / "Q0" 是格式里固定不变的占位列)
 
-    results: {qid: [(doc_id, score), ...]}，已按分数从高到低排序。
+    results: {qid: [(passage_id, score), ...]}, each list already sorted by score, highest first.
+    results：{qid: [(段落 id, 分数), ...]}，每个列表已按分数从高到低排序。
+    The official run_evalution.py (--retrieval_results_file) accepts this format as well.
     官方 run_evalution.py 的 --retrieval_results_file 也接受这个格式。
     """
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True)  # create results/runs/ if missing / 文件夹不存在就创建
     with open(path, "w", encoding="utf-8") as f:
         for qid, ranked in results.items():
             for rank, (doc_id, score) in enumerate(ranked, start=1):
@@ -180,7 +208,15 @@ def write_trec_run(path, results, run_name="contriever"):
 
 
 def read_trec_run(path):
-    """读取 TREC run 文件，返回 {qid: [doc_id, ...]}（按 rank 升序）。"""
+    """
+    Read a TREC run file; returns {qid: [passage_id, ...]} in rank order (rank 1 first).
+    Scores are dropped: evaluation and generation only need the order.
+    读取 TREC run 文件，返回 {qid: [段落 id, ...]}，按排名从 1 开始排序。
+    分数不保留：评估和生成只需要顺序。
+    """
+    # Collect (rank, passage_id) pairs, then sort by rank, so the result is correct even if
+    # the lines in the file are not in rank order.
+    # 先收集 (排名, 段落 id)，再按排名排序；即使文件里的行没按排名排列，结果也是对的。
     ranked = defaultdict(list)
     with open(path, encoding="utf-8") as f:
         for line in f:

@@ -55,7 +55,8 @@ def setup_logging(name, log_dir, level=logging.INFO):
     logger = logging.getLogger(name)
 
     def log_uncaught_exception(exc_type, exc_value, exc_traceback):
-        if issubclass(exc_type, KeyboardInterrupt):  # Ctrl+C：照常退出，不记为错误
+        # Ctrl+C: exit as usual, not logged as an error / Ctrl+C：照常退出，不记为错误
+        if issubclass(exc_type, KeyboardInterrupt):
             sys.__excepthook__(exc_type, exc_value, exc_traceback)
             return
         logger.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))

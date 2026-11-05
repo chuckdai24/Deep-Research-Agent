@@ -1,4 +1,7 @@
-"""logging_utils.py 的单元测试：日志同时写入文件、重复调用不重复输出、记录参数。"""
+"""
+Unit tests for logging_utils.py: logs go to a file, repeated setup does not duplicate output, arguments are recorded.
+logging_utils.py 的单元测试：日志同时写入文件、重复调用不重复输出、记录参数。
+"""
 
 import argparse
 import logging
@@ -11,7 +14,10 @@ from dra.logging_utils import log_args, setup_logging
 
 @pytest.fixture(autouse=True)
 def restore_logging():
-    """setup_logging 会改动全局的根 logger 和 sys.excepthook，测试后恢复原状。"""
+    """
+    setup_logging changes the global root logger and sys.excepthook; restore them after each test.
+    setup_logging 会改动全局的根 logger 和 sys.excepthook，测试后恢复原状。
+    """
     root = logging.getLogger()
     old_handlers, old_level, old_hook = root.handlers[:], root.level, sys.excepthook
     yield
@@ -32,7 +38,8 @@ def read_single_log(log_dir):
 def test_messages_go_to_timestamped_file(tmp_path):
     logger = setup_logging("03_retrieve", tmp_path)
     logger.info("R@3: %.2f", 0.93)
-    logging.getLogger("dra.data").info("from a library module")  # src/dra 里的模块也写进同一文件
+    # Modules in src/dra log to the same file / src/dra 里的模块也写进同一文件
+    logging.getLogger("dra.data").info("from a library module")
 
     name, text = read_single_log(tmp_path)
     assert name.startswith("03_retrieve_") and name.endswith(".log")
@@ -43,7 +50,7 @@ def test_messages_go_to_timestamped_file(tmp_path):
 def test_calling_twice_does_not_duplicate_handlers(tmp_path):
     setup_logging("a", tmp_path)
     setup_logging("b", tmp_path)
-    assert len(logging.getLogger().handlers) == 2  # 终端 + 文件，各一个
+    assert len(logging.getLogger().handlers) == 2  # terminal + file, one each / 终端 + 文件，各一个
 
 
 def test_log_args_records_every_argument(tmp_path):

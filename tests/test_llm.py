@@ -1,4 +1,7 @@
-"""llm.py 的单元测试：输出解析（不加载 LLM）。"""
+"""
+Unit tests for llm.py: output parsing (the LLM is not loaded).
+llm.py 的单元测试：输出解析（不加载 LLM）。
+"""
 
 from dra.llm import extract_tag, parse_answer
 
@@ -16,8 +19,8 @@ def test_extract_tag_multiline():
 
 def test_parse_answer_without_tag():
     raw = "<think>reasoning</think>\n1912"
-    assert parse_answer(raw) is None  # 官方设定：没有 <answer> 就没有答案
-    assert parse_answer(raw, fallback=True) == "1912"  # 退而取最后一个非空行
+    assert parse_answer(raw) is None  # official: no <answer>, no answer / 官方设定：没有 <answer> 就没有答案
+    assert parse_answer(raw, fallback=True) == "1912"  # falls back to the last non-empty line / 退而取最后一个非空行
 
 
 def test_parse_answer_prefers_tag_over_fallback():

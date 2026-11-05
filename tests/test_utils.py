@@ -1,4 +1,7 @@
-"""utils.py 的单元测试：随机种子。"""
+"""
+Unit tests for utils.py: the random seed.
+utils.py 的单元测试：随机种子。
+"""
 
 import random
 

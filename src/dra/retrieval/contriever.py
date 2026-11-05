@@ -32,8 +32,16 @@ def mean_pooling(last_hidden_state, attention_mask):
 
     last_hidden_state: (batch, tokens, 768)    attention_mask: (batch, tokens)    返回 / returns: (batch, 768)
     """
-    mask = attention_mask.unsqueeze(-1).float()  # (batch, tokens, 1)，便于和 768 维向量相乘
-    return (last_hidden_state * mask).sum(1) / mask.sum(1)  # 只对真实 token 求和，再除以真实 token 数
+    # unsqueeze(-1) ADDS a last dimension of size 1: (batch, tokens) -> (batch, tokens, 1).
+    # When multiplied with (batch, tokens, 768), that 1 is broadcast (copied) to all 768 values,
+    # so every value of a padding token becomes 0. .float() turns the 0/1 integers into 0.0/1.0.
+    # unsqueeze(-1) 在最后【增加】一个大小为 1 的维度：(batch, tokens) -> (batch, tokens, 1)。
+    # 和 (batch, tokens, 768) 相乘时，这个 1 会被广播（复制）到全部 768 个数，补齐位置的值都变成 0。
+    # .float() 把整数 0/1 变成小数 0.0/1.0。
+    mask = attention_mask.unsqueeze(-1).float()
+    # Sum over the tokens (dim 1), then divide by the number of real tokens.
+    # 在 token 维度（第 1 维）上求和，再除以真实 token 的个数。
+    return (last_hidden_state * mask).sum(1) / mask.sum(1)
 
 
 class ContrieverEncoder:

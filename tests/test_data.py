@@ -1,4 +1,7 @@
-"""data.py 的单元测试：用临时目录里的小文件，不依赖真实语料。"""
+"""
+Unit tests for data.py, using small files in a temporary folder instead of the real corpus.
+data.py 的单元测试：用临时目录里的小文件，不依赖真实语料。
+"""
 
 import json
 
@@ -33,7 +36,7 @@ def test_load_qrels_keeps_only_relevant(tmp_path):
     path = tmp_path / "qrels.txt"
     path.write_text(
         "q1 0 10-0001 1\n"
-        "q1 0 20-0001 0\n"  # relevance 0：不算相关
+        "q1 0 20-0001 0\n"  # relevance 0: not relevant / 不算相关
         "q2 0 20-0001 2\n"
         "\n",
         encoding="utf-8",
@@ -42,7 +45,7 @@ def test_load_qrels_keeps_only_relevant(tmp_path):
 
 
 def test_trec_run_roundtrip_sorted_by_rank(tmp_path):
-    path = tmp_path / "runs" / "run.trec"  # 父目录不存在时应自动创建
+    path = tmp_path / "runs" / "run.trec"  # parent folder must be created / 父目录不存在时应自动创建
     results = {
         "q1": [("10-0001", 0.9), ("20-0001", 0.5)],
         "q2": [("20-0001", 0.8)],
@@ -69,7 +72,8 @@ def test_load_passage_ids_follows_corpus_order_and_caches(tmp_path):
     assert load_passage_ids(corpus, cache_path=cache) == expected
     assert cache.exists()
 
-    # 第二次应直接读缓存：删掉语料也能得到同样结果
+    # The second call must read the cache: same result even with the corpus deleted.
+    # 第二次应直接读缓存：删掉语料也能得到同样结果。
     corpus.unlink()
     assert load_passage_ids(corpus, cache_path=cache) == expected
 
@@ -78,7 +82,8 @@ def test_load_passages_only_wanted_ids(tmp_path):
     corpus = tmp_path / "corpus.jsonl"
     write_jsonl(corpus, CORPUS)
 
-    # 返回语料里的整条记录（字典），与官方检索器的格式相同
+    # Returns whole corpus records (dicts), the same format as the official retriever.
+    # 返回语料里的整条记录（字典），与官方检索器的格式相同。
     passages = load_passages(corpus, wanted_ids=["20-0001", "10-0001"])
     assert passages == {"10-0001": CORPUS[0], "20-0001": CORPUS[2]}
 
