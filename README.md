@@ -21,7 +21,7 @@ Course project for Information Retrieval (NWI-I00041, Radboud University), based
 | Step | Description | Status |
 |---|---|---|
 | 1.1 | Retrieval reproduction (Table 4: R@3/10/100/1000) | Done |
-| 1.2 | Single retrieval + reader, and one DRA (Table 8: EM, SM 10/20/50/90%) | In progress |
+| 1.2 | Single retrieval + reader, and one DRA (Table 8: EM, SM 10/20/50/90%) | Single retrieval done; ReAct in progress |
 | 2 | Own DRA method | Not started |
 
 ### Results
@@ -33,6 +33,16 @@ Course project for Information Retrieval (NWI-I00041, Radboud University), based
 | Paper, Table 4 | full | — | 0.80 | 2.32 | 8.65 | 26.82 |
 | Ours, csedu | partial | official (HF `mahtaa/trqa_experiments`) | 0.93 | 2.18 | 8.39 | 26.30 |
 | Ours, local | partial | built with the official `index_builder.py` | 0.93 | 2.18 | 8.39 | 26.31 |
+
+**Step 1.2** — single retrieval (top-50 passages) + Qwen2.5-7B-Instruct on Wiki2 test, partial corpus (%):
+
+| Run | Retriever | Reader dtype | EM | SM1% | SM5% | SM10% | SM20% | SM50% | SM90% |
+|---|---|---|---|---|---|---|---|---|---|
+| Paper, Table 8 | E5 | bf16 | 3.42 | – | – | 7.00 | 8.82 | 14.47 | 24.32 |
+| Ours, csedu | Contriever | fp16 | 2.07 | 3.74 | 4.53 | 5.09 | 6.20 | 11.13 | 18.52 |
+
+Ours: 1258 queries; 581 outputs without an `<answer>` tag (scored as wrong, as in the official code);
+1 output cut off at `max_new_tokens=1024`; 3.3 s per query on 2× RTX 2080 Ti.
 
 ### Quick start (csedu cluster)
 
@@ -159,7 +169,7 @@ Run all three before committing. Settings are in `pyproject.toml`.
 | 步骤 | 内容 | 状态 |
 |---|---|---|
 | 1.1 | 检索复现（Table 4：R@3/10/100/1000） | 完成 |
-| 1.2 | 单次检索 + 阅读器，以及一种 DRA（Table 8：EM、SM 10/20/50/90%） | 进行中 |
+| 1.2 | 单次检索 + 阅读器，以及一种 DRA（Table 8：EM、SM 10/20/50/90%） | 单次检索完成；ReAct 进行中 |
 | 2 | 自己的 DRA 方法 | 未开始 |
 
 ### 结果
@@ -171,6 +181,16 @@ Run all three before committing. Settings are in `pyproject.toml`.
 | 论文 Table 4 | 完整 | — | 0.80 | 2.32 | 8.65 | 26.82 |
 | 本组，csedu | partial | 官方（HF `mahtaa/trqa_experiments`） | 0.93 | 2.18 | 8.39 | 26.30 |
 | 本组，本地 | partial | 用官方 `index_builder.py` 自建 | 0.93 | 2.18 | 8.39 | 26.31 |
+
+**Step 1.2**：单次检索（Top-50 段落）+ Qwen2.5-7B-Instruct，Wiki2 测试集，partial 语料（%）：
+
+| 运行 | 检索模型 | 阅读器精度 | EM | SM1% | SM5% | SM10% | SM20% | SM50% | SM90% |
+|---|---|---|---|---|---|---|---|---|---|
+| 论文 Table 8 | E5 | bf16 | 3.42 | – | – | 7.00 | 8.82 | 14.47 | 24.32 |
+| 本组，csedu | Contriever | fp16 | 2.07 | 3.74 | 4.53 | 5.09 | 6.20 | 11.13 | 18.52 |
+
+本组：1258 题；581 题输出中没有 `<answer>` 标签（与官方代码一致，按答错计）；
+1 题达到 `max_new_tokens=1024` 被截断；2 块 RTX 2080 Ti 上每题 3.3 秒。
 
 ### 快速开始（csedu 集群）
 
