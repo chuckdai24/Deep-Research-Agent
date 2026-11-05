@@ -10,25 +10,38 @@ it cannot search again (that is what the deep research agents do).
 -> 用官方 soft_exact_match 和标准答案对比。每题只检索一次、只调用一次模型，不能再去搜索
 （再次搜索是 DRA 做的事）。
 
-Output / 输出：<output> (jsonl), one line per question with the question, gold answer, the model's full
-output, the extracted answer and the scores. Written line by line, so finished questions survive a crash.
-每题一行：问题、标准答案、模型完整输出、取出的答案、判分。逐行写入，中途崩溃时已完成的题不会丢失。
+Scoring is the same as the official run_evalution.py: exact match, plus soft match at 1/5/10/20/50/90%
+tolerance (Table 8 reports EM and SM 10/20/50/90).
+判分与官方 run_evalution.py 相同：exact match，加上 1/5/10/20/50/90% 容差的 soft match
+（Table 8 报告 EM 和 SM 10/20/50/90）。
+
+Output / 输出：
+    <output>               jsonl, one line per question: question, gold answer, the model's full output,
+                           the extracted answer and the scores. Written line by line, so finished
+                           questions survive a crash.
+                           每题一行：问题、标准答案、模型完整输出、取出的答案、判分。逐行写入，
+                           中途崩溃时已完成的题不会丢失。
+    <output>_summary.json  EM and SM in %, questions without <answer>, seconds per question
+                           EM 和 SM（%）、没有 <answer> 的题数、每题耗时
 
 Usage / 用法：
     python scripts/05_generate_answers.py --limit 5                                # first 5 questions / 先跑 5 题
     python scripts/05_generate_answers.py --model Qwen/Qwen2.5-1.5B-Instruct --limit 5   # local debugging / 本地调试
+    python scripts/05_generate_answers.py --dtype float16           # GPU without bf16 / 不支持 bf16 的 GPU
 """
 
 import argparse
 import json
+import time
+from collections import Counter
 from pathlib import Path
 
 from tqdm import tqdm
 
 from dra import config
 from dra.data import load_passages, load_queries, read_trec_run
-from dra.evaluation import load_official_answer_metric
-from dra.llm import LLM, parse_answer
+from dra.evaluation import load_official_answer_metric, score_answer, summarize_answer_scores
+from dra.llm import DTYPES, LLM, parse_answer, resolve_dtype
 from dra.logging_utils import log_args, setup_logging
 from dra.methods.single_retrieval import SingleRetrieval
 from dra.utils import set_seed
@@ -62,6 +75,13 @@ def main():
         "--model",
         default=config.READER_MODEL,
         help="LLM that reads the passages and writes the answer / 读段落、写答案的大模型",
+    )
+    parser.add_argument(
+        "--dtype",
+        choices=sorted(DTYPES),
+        default=config.READER_DTYPE,
+        help="number format of the reader (official: bfloat16; RTX 2080 Ti: float16) "
+        "/ 阅读器的数值格式（官方：bfloat16；RTX 2080 Ti：float16）",
     )
     parser.add_argument(
         "--topk",
@@ -146,15 +166,24 @@ def main():
     #    准备阅读器：LLM 把模型加载到 GPU（模型太大会在这里报错）；
     #    SingleRetrieval 规定答题方式：一个 prompt 放进全部段落，只生成一次。
     #    DRA 会是 dra/methods/ 里的另一个类，用同一个 LLM。
-    logger.info("Loading reader %s", args.model)
-    method = SingleRetrieval(LLM(args.model))
+    logger.info("Loading reader %s (%s)", args.model, args.dtype)
+    llm = LLM(args.model, dtype=resolve_dtype(args.dtype))
+    # Where the weights ended up: number of weight tensors per device, e.g. {"cuda:0": 180, "cuda:1": 160}
+    # means the model is split over two GPUs, {"cpu": ...} means no GPU was used.
+    # 权重被放在了哪里：每个设备上的权重张量个数，例如 {"cuda:0": 180, "cuda:1": 160} 表示模型分在两块 GPU 上，
+    # {"cpu": ...} 表示没有用到 GPU。
+    params_per_device = Counter(str(p.device) for p in llm.model.parameters())
+    logger.info("Weights per device: %s", dict(params_per_device))
+    method = SingleRetrieval(llm)
     # Official scoring function from external/total-recall-qa, so scores match the paper.
     # 官方判分函数（来自 external/total-recall-qa），保证判分与论文一致。
     soft_exact_match = load_official_answer_metric(config.OFFICIAL_GEN_METRICS)
+    tolerances = config.SOFT_MATCH_TOLERANCES
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    n_correct = 0  # questions answered exactly right / 完全答对的题数
+    scores = []  # score_answer result of every question / 每道题的 score_answer 结果
     n_no_answer = 0  # questions without an <answer> tag (and no fallback) / 没有 <answer> 标签（且未用 fallback）的题数
+    start = time.time()
     with open(args.output, "w", encoding="utf-8") as f:
         # 4. Answer the questions one by one. tqdm shows a progress bar; enumerate(start=1) gives i = 1, 2, ...
         #    逐题作答。tqdm 显示进度条；enumerate(start=1) 给出题号 i = 1, 2, ...
@@ -177,22 +206,24 @@ def main():
             #    取出 <answer>...</answer> 里的内容；没有标签时为 None。
             pred = parse_answer(raw, fallback=args.answer_fallback)
 
-            # d. Score against the gold answer: {"exact_match": bool, "soft_match": bool}.
-            #    TODO: Table 8 needs EM + SM at 10/20/50/90% tolerance; only 5% is computed here for now.
-            #    和标准答案对比，返回 {"exact_match": bool, "soft_match": bool}。
-            #    TODO：Table 8 需要 EM + SM 10/20/50/90% 容差，这里目前只算了 5%。
-            score = soft_exact_match(pred, q["answer"], tolerance_pct=5.0)
+            # d. Score against the gold answer, as in the official code:
+            #    {"exact_match": bool, "soft_matches": {1.0: bool, 5.0: bool, ..., 90.0: bool}}.
+            #    和标准答案对比，与官方一致：
+            #    {"exact_match": bool, "soft_matches": {1.0: bool, 5.0: bool, ..., 90.0: bool}}。
+            score = score_answer(soft_exact_match, pred, q["answer"], tolerances, decimals=config.ANSWER_DECIMALS)
 
-            # e. Count. True counts as 1 and False as 0, so this adds 1 only when the condition holds.
-            #    计数。True 当作 1、False 当作 0，所以条件成立时才加 1。
-            n_correct += score["exact_match"]
+            # e. Keep the score for the summary; True counts as 1, so this adds 1 only when there is no answer.
+            #    保存判分用于汇总；True 当作 1，所以没有答案时才加 1。
+            scores.append(score)
             n_no_answer += pred is None
 
-            # f. Write one line for this question. **score unpacks it into "exact_match" and "soft_match" keys;
+            # f. Write one line for this question. **score unpacks it into "exact_match" and "soft_matches" keys
+            #    (json writes the tolerance keys as strings, e.g. "10.0", like the official results);
             #    ensure_ascii=False keeps non-English characters readable; flush() writes to disk immediately,
             #    so finished questions are kept if the run crashes.
-            #    写入这道题的一行。**score 展开成 "exact_match"、"soft_match" 两个键；
-            #    ensure_ascii=False 让非英文字符保持可读；flush() 立即写入硬盘，崩溃时已完成的题不会丢失。
+            #    写入这道题的一行。**score 展开成 "exact_match"、"soft_matches" 两个键（json 把容差键写成字符串，
+            #    如 "10.0"，与官方结果相同）；ensure_ascii=False 让非英文字符保持可读；
+            #    flush() 立即写入硬盘，崩溃时已完成的题不会丢失。
             f.write(
                 json.dumps(
                     {
@@ -209,17 +240,30 @@ def main():
             )
             f.flush()
 
-            # g. Log progress every log_every questions (useful on the cluster, where nobody watches the terminal).
-            #    每 log_every 题在日志里记一次进度（在集群上没人盯着终端时很有用）。
+            # g. Log progress every log_every questions, with the average time per question (on the cluster this
+            #    tells whether all questions fit in the job's time limit).
+            #    每 log_every 题在日志里记一次进度和每题平均耗时（在集群上可以判断作业时间够不够跑完）。
             if i % args.log_every == 0:
-                logger.info("[%d/%d] EM so far: %.2f%%", i, len(queries), 100 * n_correct / i)
+                em = 100 * sum(s["exact_match"] for s in scores) / i
+                logger.info(
+                    "[%d/%d] EM so far: %.2f%%, %.1f s/question", i, len(queries), em, (time.time() - start) / i
+                )
 
-    # 5. Summary. max(..., 1) avoids dividing by zero when there are no questions.
-    #    汇总。max(..., 1) 避免没有题目时除以 0。
-    n = max(len(queries), 1)
-    logger.info("Exact match: %d/%d = %.2f%%", n_correct, len(queries), 100 * n_correct / n)
-    logger.info("No <answer> tag: %d/%d = %.2f%%", n_no_answer, len(queries), 100 * n_no_answer / n)
-    logger.info("Predictions written to %s", args.output)
+    # 5. Summary: average the scores, log them and write them next to the predictions.
+    #    汇总：把判分平均，记进日志，并写到逐题结果旁边。
+    summary = summarize_answer_scores(scores, tolerances)
+    summary["no_answer_tag"] = n_no_answer
+    summary["seconds_per_question"] = (time.time() - start) / max(len(queries), 1)
+    logger.info("Exact match: %.2f%%", summary["exact_match"])
+    for pct in tolerances:
+        logger.info("Soft match %4.0f%%: %.2f%%", pct, summary["soft_match"][pct])
+    logger.info("No <answer> tag: %d/%d", n_no_answer, len(queries))
+    logger.info("Time: %.1f s/question", summary["seconds_per_question"])
+
+    summary_path = args.output.with_name(args.output.stem + "_summary.json")
+    with open(summary_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
+    logger.info("Predictions written to %s, summary to %s", args.output, summary_path)
 
 
 if __name__ == "__main__":

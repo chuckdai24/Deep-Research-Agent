@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Total Recall QA (TRQA) experiments: baseline reproduction and our own deep research agent"
 requires-python = ">=3.10"
 dependencies = [
+    "accelerate>=1.0",  # device_map="auto": split the reader over several GPUs
     "datasets>=4.5",
     "faiss-cpu>=1.13",
     "numpy>=1.26",  # numpy >= 2.3 needs Python >= 3.11; the csedu cluster has Python 3.10

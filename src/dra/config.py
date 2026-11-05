@@ -108,6 +108,17 @@ MAX_NEW_TOKENS = 1024
 # Sampling temperature, same as generation_temp=0.7 in the official SingleRetrieval.inference.
 # 采样温度，与官方 SingleRetrieval.inference 的 generation_temp=0.7 一致。
 TEMPERATURE = 0.7
+# Number format of the reader's weights. The official code uses bfloat16; the RTX 2080 Ti on csedu
+# does not support it, so jobs there pass --dtype float16.
+# 阅读器权重的数值格式。官方用 bfloat16；csedu 上的 RTX 2080 Ti 不支持，所以那里的作业传 --dtype float16。
+READER_DTYPE = "bfloat16"
+
+# Answer scoring, same as the official run_evalution.py (line 331 and soft_exact_match(decimals=3)):
+# exact match plus soft match at these tolerances (%). Table 8 reports 10/20/50/90.
+# 答案判分，与官方 run_evalution.py 一致（第 331 行，以及 soft_exact_match(decimals=3)）：
+# exact match，加上以下容差（%）的 soft match。Table 8 报告其中的 10/20/50/90。
+SOFT_MATCH_TOLERANCES = (1.0, 5.0, 10.0, 20.0, 50.0, 90.0)
+ANSWER_DECIMALS = 3
 
 # Random seed: with temperature > 0 generation is random, so the seed must be fixed to reproduce results
 # (same default as the official run_evalution.py).

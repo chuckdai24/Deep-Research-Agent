@@ -119,3 +119,37 @@ def load_official_answer_metric(metrics_path):
     spec.loader.exec_module(module)
     # 4. Take out the function we need.           取出需要的函数。
     return module.soft_exact_match
+
+
+def score_answer(soft_exact_match, prediction, gold, tolerances, decimals=3):
+    """
+    Score one answer like the official run_evalution.py: exact match once, soft match once per tolerance.
+    按官方 run_evalution.py 的方式给一个答案判分：exact match 一次，每个容差各算一次 soft match。
+
+    soft_exact_match: the official function (load_official_answer_metric).
+    Returns {"exact_match": bool, "soft_matches": {tolerance: bool, ...}}, the same keys as the official
+    per-query records; a missing prediction (None) is wrong at every tolerance.
+    返回 {"exact_match": bool, "soft_matches": {容差: bool, ...}}，键名与官方逐题结果相同；
+    没有预测（None）时所有容差都算错。
+    """
+    exact = soft_exact_match(prediction, gold, decimals=decimals)["exact_match"]
+    soft = {
+        pct: soft_exact_match(prediction, gold, decimals=decimals, tolerance_pct=pct)["soft_match"]
+        for pct in tolerances
+    }
+    return {"exact_match": exact, "soft_matches": soft}
+
+
+def summarize_answer_scores(scores, tolerances):
+    """
+    Average the per-question scores of score_answer into percentages.
+    把 score_answer 的逐题结果平均成百分比。
+
+    Returns {"num_queries": n, "exact_match": %, "soft_match": {tolerance: %, ...}}.
+    """
+    n = max(len(scores), 1)
+    return {
+        "num_queries": len(scores),
+        "exact_match": 100 * sum(s["exact_match"] for s in scores) / n,
+        "soft_match": {pct: 100 * sum(s["soft_matches"][pct] for s in scores) / n for pct in tolerances},
+    }

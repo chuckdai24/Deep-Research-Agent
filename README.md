@@ -40,12 +40,17 @@ Course project for Information Retrieval (NWI-I00041, Radboud University), based
 # Once, on the login node
 git clone --recurse-submodules https://github.com/diegoruedaa/group18-project.git ~/group18-project
 cd ~/group18-project
-bash cluster/setup.sh                       # venv, dependencies, Contriever, official index (18 GB)
+bash cluster/setup.sh                       # venv, dependencies, Contriever, official index (18 GB), Qwen2.5-7B (15 GB)
 
 # Step 1.1 (runs scripts 03 + 04 on a GPU node)
 sbatch cluster/step1_1_retrieval.sbatch
 squeue -u $USER                             # PD = waiting, R = running
 cat results/eval_official/retrieval_summary.json
+
+# Step 1.2 (runs script 05 on 2 GPUs; needs the Step 1.1 run file)
+sbatch --time=01:00:00 cluster/step1_2_single_retrieval.sbatch --limit 5   # test run
+sbatch cluster/step1_2_single_retrieval.sbatch                             # all queries
+cat results/generation/single_retrieval_qwen7b_fp16_summary.json
 ```
 
 `setup.sh` is safe to re-run; finished steps are skipped and an interrupted download resumes.
@@ -121,7 +126,8 @@ so later steps can be changed and re-run without repeating retrieval.
 - Index, query encoding (max length 64, fp16, no prefix), mean pooling and L2 normalisation follow the official code.
 - Entity-level Recall@k follows the official `extract_entity_id` / `entity_recall_at_k`.
 - System prompt, `<information>` template and passage format match the official `SingleRetrieval`.
-- Answers are scored with the official `soft_exact_match`. SM 10/20/50/90% is not implemented yet (currently EM and SM 5%).
+- Answers are scored with the official `soft_exact_match`: EM and SM at 1/5/10/20/50/90%, `decimals=3`, as in `run_evalution.py`.
+- The reader runs in fp16 on csedu (`--dtype float16`, split over 2 GPUs); the official setting is bf16, which the RTX 2080 Ti does not support.
 - `05_generate_answers.py --answer_fallback` (use the last line when no `<answer>` tag is produced) is **not** an official setting.
 
 ### Development
@@ -172,12 +178,17 @@ Run all three before committing. Settings are in `pyproject.toml`.
 # 一次性，在登录节点上
 git clone --recurse-submodules https://github.com/diegoruedaa/group18-project.git ~/group18-project
 cd ~/group18-project
-bash cluster/setup.sh                       # venv、依赖、Contriever、官方索引（18 GB）
+bash cluster/setup.sh                       # venv、依赖、Contriever、官方索引（18 GB）、Qwen2.5-7B（15 GB）
 
 # Step 1.1（在 GPU 节点上运行脚本 03 + 04）
 sbatch cluster/step1_1_retrieval.sbatch
 squeue -u $USER                             # PD = 排队中，R = 运行中
 cat results/eval_official/retrieval_summary.json
+
+# Step 1.2（在 2 块 GPU 上运行脚本 05；需要 Step 1.1 的 run 文件）
+sbatch --time=01:00:00 cluster/step1_2_single_retrieval.sbatch --limit 5   # 先测 5 题
+sbatch cluster/step1_2_single_retrieval.sbatch                             # 全部题目
+cat results/generation/single_retrieval_qwen7b_fp16_summary.json
 ```
 
 `setup.sh` 可以重复运行：已完成的步骤会跳过，中断的下载会从断点继续。
@@ -253,7 +264,8 @@ python scripts/05_generate_answers.py       # 阅读器 + 判分 -> results/gene
 - 索引、问题编码（最长 64 token、fp16、不加前缀）、mean pooling 和 L2 归一化都按官方代码。
 - 实体级 Recall@k 按官方 `extract_entity_id` / `entity_recall_at_k`。
 - system prompt、`<information>` 模板和段落格式与官方 `SingleRetrieval` 一致。
-- 答案用官方 `soft_exact_match` 判分。SM 10/20/50/90% 尚未实现（目前是 EM 和 SM 5%）。
+- 答案用官方 `soft_exact_match` 判分：EM 和 SM 1/5/10/20/50/90%，`decimals=3`，与 `run_evalution.py` 一致。
+- 阅读器在 csedu 上用 fp16 运行（`--dtype float16`，分在 2 块 GPU 上）；官方设定是 bf16，RTX 2080 Ti 不支持。
 - `05_generate_answers.py --answer_fallback`（没有 `<answer>` 标签时取最后一行）**不是**官方设定。
 
 ### 开发

@@ -1,9 +1,24 @@
 """
-Unit tests for llm.py: output parsing (the LLM is not loaded).
-llm.py 的单元测试：输出解析（不加载 LLM）。
+Unit tests for llm.py: dtype names and output parsing (the LLM is not loaded).
+llm.py 的单元测试：dtype 名称与输出解析（不加载 LLM）。
 """
 
-from dra.llm import extract_tag, parse_answer
+import pytest
+import torch
+
+from dra.llm import extract_tag, parse_answer, resolve_dtype
+
+
+def test_resolve_dtype():
+    assert resolve_dtype("float16") is torch.float16
+    assert resolve_dtype("bfloat16") is torch.bfloat16
+
+
+def test_resolve_dtype_unknown_name():
+    # A typo must fail loudly instead of silently loading the model in another format.
+    # 拼错的名字必须报错，而不是悄悄用别的格式加载模型。
+    with pytest.raises(ValueError):
+        resolve_dtype("fp16")
 
 
 def test_extract_tag_takes_first_and_strips():

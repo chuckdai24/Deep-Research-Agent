@@ -18,27 +18,53 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 # ---------------------------------------------------------------------------
 
 
+# Names accepted for the number format of the weights (command line -> torch type).
+# 权重数值格式可用的名字（命令行参数 -> torch 类型）。
+DTYPES = {
+    "bfloat16": torch.bfloat16,
+    "float16": torch.float16,
+    "float32": torch.float32,
+}
+
+
+def resolve_dtype(name):
+    """
+    Turn a dtype name such as "float16" into the torch type; raise ValueError for an unknown name.
+    把 "float16" 这样的名字转换成 torch 类型；名字不认识时报 ValueError。
+    """
+    if name not in DTYPES:
+        raise ValueError(f"unknown dtype {name!r}, choose from {sorted(DTYPES)}")
+    return DTYPES[name]
+
+
 class LLM:
     """
     A chat LLM run locally with HuggingFace transformers.
     基于 HuggingFace transformers 在本地运行的 chat LLM。
     """
 
-    def __init__(self, model_name, device=None, dtype=torch.bfloat16):
+    def __init__(self, model_name, dtype=torch.bfloat16):
         """
-        Load the tokenizer and the model, and move the model to the GPU if there is one.
-        A model too large for GPU memory fails here.
-        加载 tokenizer 和模型，有 GPU 就把模型放到 GPU 上。模型太大、显存放不下时会在这里报错。
+        Load the tokenizer and the model onto the available GPUs. A model too large for GPU memory fails here.
+        加载 tokenizer 和模型到可用的 GPU 上。模型太大、显存放不下时会在这里报错。
 
-        dtype: number format of the weights. bfloat16 halves memory compared with float32, but
-        older GPUs such as the RTX 2080Ti on the cluster do not support it (use float16 there).
-        dtype：模型权重的数值格式。bfloat16 比 float32 省一半显存，
-        但集群上的 RTX 2080Ti 等旧 GPU 不支持它（那里要用 float16）。
+        dtype: number format of the weights; bfloat16 and float16 both take 2 bytes per parameter
+        (7B ≈ 15 GB). The official code uses bfloat16; older GPUs such as the RTX 2080 Ti on csedu do not
+        support it, so use float16 there.
+        dtype：权重的数值格式；bfloat16 和 float16 每个参数都占 2 字节（7B 约 15 GB）。
+        官方用 bfloat16；csedu 上的 RTX 2080 Ti 等旧 GPU 不支持，那里要用 float16。
+
+        device_map="auto" (needs the accelerate package) places the layers over all visible GPUs: with one
+        GPU the whole model goes there, with two GPUs (7B on 11 GB cards) the first layers go to GPU 0 and
+        the rest to GPU 1. Only one GPU computes at a time, so two GPUs fit a larger model but are not faster.
+        Without a GPU the model stays on the CPU.
+        device_map="auto"（需要 accelerate 包）把各层分配到所有可见的 GPU 上：只有一块 GPU 时整个模型放在
+        那里；两块 GPU 时（11 GB 的卡跑 7B）前面的层放 GPU 0、其余放 GPU 1。同一时刻只有一块卡在计算，
+        所以两块卡能放下更大的模型，但不会更快。没有 GPU 时模型留在 CPU 上。
         """
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         # .eval(): inference mode (e.g. turns off dropout).   .eval()：推理模式（例如关闭 dropout）。
-        self.model = AutoModelForCausalLM.from_pretrained(model_name, dtype=dtype).to(self.device).eval()
+        self.model = AutoModelForCausalLM.from_pretrained(model_name, dtype=dtype, device_map="auto").eval()
 
     # Decorator: while this function runs, PyTorch does not record the computation for training
     # (no gradients), which saves GPU memory and time. We only use the model, never train it.
@@ -63,9 +89,13 @@ class LLM:
         #    add_generation_prompt=True 在末尾加上 assistant 开头，意思是"现在轮到你回答了"。
         text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
-        # 2. Text -> token ids as a PyTorch tensor, on the same device as the model. Shape: (1, prompt length).
-        #    文字 -> token id（PyTorch 张量），放到和模型相同的设备上。形状：(1, prompt 长度)。
-        inputs = self.tokenizer(text, return_tensors="pt").to(self.device)
+        # 2. Text -> token ids as a PyTorch tensor. Shape: (1, prompt length). The ids go to the device of the
+        #    model's first layer (self.model.device), where the computation starts; with device_map the model
+        #    may be spread over two GPUs, and accelerate moves the data between them.
+        #    文字 -> token id（PyTorch 张量）。形状：(1, prompt 长度)。放到模型第一层所在的设备
+        #    （self.model.device），计算从那里开始；用了 device_map 后模型可能分在两块 GPU 上，
+        #    数据在两块卡之间的搬运由 accelerate 完成。
+        inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
 
         # 3. Generate token by token until the end-of-turn token or max_new_tokens. The slowest step.
         #    do_sample: temperature > 0 -> sample the next token by probability; 0 -> always the most likely one.
