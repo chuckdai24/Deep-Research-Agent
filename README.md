@@ -93,15 +93,16 @@ Every script supports `-h`; defaults come from `src/dra/config.py`.
 
 ### Running on the csedu cluster
 
-On the cluster we use the **official** Contriever index (HF `mahtaa/trqa_experiments`, already downloaded by Diego)
-and the original corpus provided by the course, so steps 01 and 02 are not run. All paths are in `cluster/env.sh`.
+On the cluster we use the **official** Contriever index (HF `mahtaa/trqa_experiments`, downloaded by `setup.sh`
+into your own folder) and the original corpus provided by the course, so steps 01 and 02 are not run.
+All paths are in `cluster/env.sh`.
 
 ```bash
 # Once, on the login node
 ssh <user>@cnlogin22.science.ru.nl
 git clone --recurse-submodules <repo-url> ~/group18-project
 cd ~/group18-project
-bash cluster/setup.sh          # venv + dra + Contriever download, under /vol/.../users/$USER
+bash cluster/setup.sh          # venv + dra + Contriever + official index (18 GB), under /vol/.../users/$USER
 
 # Optional: load the environment automatically at every login
 echo "source ~/group18-project/cluster/env.sh" >> ~/.bashrc
@@ -115,10 +116,10 @@ tail -f results/step1_1_retrieval-*.out
 | File | Purpose |
 |---|---|
 | `cluster/env.sh` | Paths (course folder, personal folder from `$USER`, corpus, index), `HF_HOME`, venv activation. Source it, do not run it. |
-| `cluster/setup.sh` | One-time setup; safe to re-run. |
+| `cluster/setup.sh` | One-time setup; safe to re-run (an interrupted index download resumes). |
 | `cluster/step1_1_retrieval.sbatch` | Runs 03 + 04 with the official index -> `results/eval_official/` |
 
-Large files (venv, model cache, mapping tables) go to `/vol/csedu-nobackup/.../users/$USER`, because home is only 10 GB.
+Large files (venv, model cache, index, mapping tables) go to `/vol/csedu-nobackup/.../users/$USER`, because home is only 10 GB.
 GPU jobs run with `HF_HUB_OFFLINE=1`, so models must be downloaded first (`setup.sh` does this for Contriever).
 
 ### Development
@@ -257,15 +258,15 @@ python scripts/05_generate_answers.py --limit 5     # -> results/generation/，�
 
 ### 在 csedu 集群上运行
 
-集群上用**官方**的 Contriever 索引（HF `mahtaa/trqa_experiments`，Diego 已下载）和课程提供的原始格式语料，
-所以不运行 01 和 02。所有路径都在 `cluster/env.sh` 里。
+集群上用**官方**的 Contriever 索引（HF `mahtaa/trqa_experiments`，由 `setup.sh` 下载到你自己的文件夹）
+和课程提供的原始格式语料，所以不运行 01 和 02。所有路径都在 `cluster/env.sh` 里。
 
 ```bash
 # 一次性，在登录节点上
 ssh <用户名>@cnlogin22.science.ru.nl
 git clone --recurse-submodules <本仓库地址> ~/group18-project
 cd ~/group18-project
-bash cluster/setup.sh          # 在 /vol/.../users/$USER 下创建 venv、安装 dra、下载 Contriever
+bash cluster/setup.sh          # 在 /vol/.../users/$USER 下创建 venv、安装 dra、下载 Contriever 和官方索引（18 GB）
 
 # 可选：每次登录自动加载环境
 echo "source ~/group18-project/cluster/env.sh" >> ~/.bashrc
@@ -279,10 +280,10 @@ tail -f results/step1_1_retrieval-*.out
 | 文件 | 作用 |
 |---|---|
 | `cluster/env.sh` | 路径（课程文件夹、按 `$USER` 确定的个人文件夹、语料、索引）、`HF_HOME`、激活 venv。用 source 读入，不要直接运行。 |
-| `cluster/setup.sh` | 一次性设置；可以重复运行。 |
+| `cluster/setup.sh` | 一次性设置；可以重复运行（索引下载中断后会从断点继续）。 |
 | `cluster/step1_1_retrieval.sbatch` | 用官方索引运行 03 + 04 -> `results/eval_official/` |
 
-大文件（venv、模型缓存、映射表）放在 `/vol/csedu-nobackup/.../users/$USER`，因为 home 只有 10 GB。
+大文件（venv、模型缓存、索引、映射表）放在 `/vol/csedu-nobackup/.../users/$USER`，因为 home 只有 10 GB。
 GPU 作业设置了 `HF_HUB_OFFLINE=1`（不联网），所以模型要先下载好（`setup.sh` 已下载 Contriever）。
 
 ### 开发
