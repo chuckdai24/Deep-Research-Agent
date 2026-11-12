@@ -1,0 +1,16 @@
+2026-11-05 16:37:56 INFO 03_retrieve: Log file: /home/chengzhidai/group18-project/results/logs/03_retrieve_20261105-163756.log
+2026-11-05 16:37:56 INFO 03_retrieve: Arguments:
+2026-11-05 16:37:56 INFO 03_retrieve:   batch_size = 512
+2026-11-05 16:37:56 INFO 03_retrieve:   corpus_path = /vol/csedu-nobackup/course/I00041_informationretrieval/shared/trqa/data/shared/corpus_wikipedia_en-20251001_rewritten_partial.jsonl
+2026-11-05 16:37:56 INFO 03_retrieve:   fp16 = True
+2026-11-05 16:37:56 INFO 03_retrieve:   index_path = /vol/csedu-nobackup/course/I00041_informationretrieval/users/chengzhidai/trqa_experiments/indices/wiki_partial/contriever_partial/contriever_Flat.index
+2026-11-05 16:37:56 INFO 03_retrieve:   k = 1000
+2026-11-05 16:37:56 INFO 03_retrieve:   max_length = 64
+2026-11-05 16:37:56 INFO 03_retrieve:   model = facebook/contriever-msmarco
+2026-11-05 16:37:56 INFO 03_retrieve:   output = results/runs/contriever_wiki2_test_official.trec
+2026-11-05 16:37:56 INFO 03_retrieve:   passage_ids_cache = /vol/csedu-nobackup/course/I00041_informationretrieval/users/chengzhidai/passage_ids_official.txt
+2026-11-05 16:37:56 INFO 03_retrieve:   queries = /home/chengzhidai/group18-project/external/total-recall-qa/dataset/TRQA/wiki2/test/queries_wiki2_test.jsonl
+2026-11-05 16:37:56 INFO 03_retrieve: Queries: 1258
+2026-11-05 16:43:44 INFO 03_retrieve: Index vectors: 5910177
+2026-11-05 16:45:16 INFO 03_retrieve: Example 13_p569 -> ['70285879-0001', '22685-0005', '70014908-0001']
+2026-11-05 16:45:16 INFO 03_retrieve: Results written to results/runs/contriever_wiki2_test_official.trec

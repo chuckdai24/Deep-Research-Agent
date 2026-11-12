@@ -1,0 +1,12 @@
+2026-11-05 16:45:19 INFO 04_evaluate_retrieval: Log file: /home/chengzhidai/group18-project/results/logs/04_evaluate_retrieval_20261105-164519.log
+2026-11-05 16:45:19 INFO 04_evaluate_retrieval: Arguments:
+2026-11-05 16:45:19 INFO 04_evaluate_retrieval:   ks = [3, 10, 100, 1000]
+2026-11-05 16:45:19 INFO 04_evaluate_retrieval:   output_dir = results/eval_official
+2026-11-05 16:45:19 INFO 04_evaluate_retrieval:   qrels = /home/chengzhidai/group18-project/external/total-recall-qa/dataset/TRQA/wiki2/test/trec_qrels_wiki2_test.txt
+2026-11-05 16:45:19 INFO 04_evaluate_retrieval:   run_file = results/runs/contriever_wiki2_test_official.trec
+2026-11-05 16:45:21 INFO 04_evaluate_retrieval: R@3: 0.93
+2026-11-05 16:45:21 INFO 04_evaluate_retrieval: R@10: 2.18
+2026-11-05 16:45:21 INFO 04_evaluate_retrieval: R@100: 8.39
+2026-11-05 16:45:21 INFO 04_evaluate_retrieval: R@1000: 26.30
+2026-11-05 16:45:21 INFO 04_evaluate_retrieval: Evaluated queries: 1258 (skipped, no qrels: 0)
+2026-11-05 16:45:21 INFO 04_evaluate_retrieval: Results written to results/eval_official

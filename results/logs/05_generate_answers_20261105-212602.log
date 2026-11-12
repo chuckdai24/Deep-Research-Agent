@@ -1,0 +1,54 @@
+2026-11-05 21:26:02 INFO 05_generate_answers: Log file: /home/chengzhidai/group18-project/results/logs/05_generate_answers_20261105-212602.log
+2026-11-05 21:26:02 INFO 05_generate_answers: Arguments:
+2026-11-05 21:26:02 INFO 05_generate_answers:   answer_fallback = False
+2026-11-05 21:26:02 INFO 05_generate_answers:   corpus_path = /vol/csedu-nobackup/course/I00041_informationretrieval/shared/trqa/data/shared/corpus_wikipedia_en-20251001_rewritten_partial.jsonl
+2026-11-05 21:26:02 INFO 05_generate_answers:   dtype = float16
+2026-11-05 21:26:02 INFO 05_generate_answers:   limit = None
+2026-11-05 21:26:02 INFO 05_generate_answers:   log_every = 50
+2026-11-05 21:26:02 INFO 05_generate_answers:   max_new_tokens = 1024
+2026-11-05 21:26:02 INFO 05_generate_answers:   model = Qwen/Qwen2.5-7B-Instruct
+2026-11-05 21:26:02 INFO 05_generate_answers:   output = results/generation/single_retrieval_qwen7b_fp16.jsonl
+2026-11-05 21:26:02 INFO 05_generate_answers:   queries = /home/chengzhidai/group18-project/external/total-recall-qa/dataset/TRQA/wiki2/test/queries_wiki2_test.jsonl
+2026-11-05 21:26:02 INFO 05_generate_answers:   run_file = results/runs/contriever_wiki2_test_official.trec
+2026-11-05 21:26:02 INFO 05_generate_answers:   seed = 42
+2026-11-05 21:26:02 INFO 05_generate_answers:   temperature = 0.7
+2026-11-05 21:26:02 INFO 05_generate_answers:   topk = 50
+2026-11-05 21:27:28 INFO 05_generate_answers: Queries: 1258, passages needed: 31296
+2026-11-05 21:27:28 INFO 05_generate_answers: Loading reader Qwen/Qwen2.5-7B-Instruct (float16)
+2026-11-05 21:30:38 INFO 05_generate_answers: Weights per device: {'cuda:0': 169, 'cuda:1': 170}
+2026-11-05 21:34:31 INFO 05_generate_answers: [50/1258] EM so far: 6.00%, 4.7 s/question
+2026-11-05 21:37:38 INFO 05_generate_answers: [100/1258] EM so far: 5.00%, 4.2 s/question
+2026-11-05 21:39:44 INFO 05_generate_answers: [150/1258] EM so far: 3.33%, 3.6 s/question
+2026-11-05 21:41:34 INFO 05_generate_answers: [200/1258] EM so far: 3.00%, 3.3 s/question
+2026-11-05 21:43:45 INFO 05_generate_answers: [250/1258] EM so far: 2.80%, 3.1 s/question
+2026-11-05 21:46:21 INFO 05_generate_answers: [300/1258] EM so far: 2.33%, 3.1 s/question
+2026-11-05 21:49:03 INFO 05_generate_answers: [350/1258] EM so far: 2.57%, 3.2 s/question
+2026-11-05 21:51:39 INFO 05_generate_answers: [400/1258] EM so far: 2.75%, 3.2 s/question
+2026-11-05 21:53:36 INFO 05_generate_answers: [450/1258] EM so far: 2.44%, 3.1 s/question
+2026-11-05 21:55:56 INFO 05_generate_answers: [500/1258] EM so far: 2.40%, 3.0 s/question
+2026-11-05 21:58:40 INFO 05_generate_answers: [550/1258] EM so far: 2.18%, 3.1 s/question
+2026-11-05 22:01:38 INFO 05_generate_answers: [600/1258] EM so far: 2.00%, 3.1 s/question
+2026-11-05 22:04:11 INFO 05_generate_answers: [650/1258] EM so far: 2.31%, 3.1 s/question
+2026-11-05 22:06:31 INFO 05_generate_answers: [700/1258] EM so far: 2.29%, 3.1 s/question
+2026-11-05 22:08:53 INFO 05_generate_answers: [750/1258] EM so far: 2.40%, 3.1 s/question
+2026-11-05 22:11:31 INFO 05_generate_answers: [800/1258] EM so far: 2.50%, 3.1 s/question
+2026-11-05 22:14:53 INFO 05_generate_answers: [850/1258] EM so far: 2.35%, 3.1 s/question
+2026-11-05 22:17:59 INFO 05_generate_answers: [900/1258] EM so far: 2.33%, 3.2 s/question
+2026-11-05 22:20:49 INFO 05_generate_answers: [950/1258] EM so far: 2.21%, 3.2 s/question
+2026-11-05 22:24:25 INFO 05_generate_answers: [1000/1258] EM so far: 2.30%, 3.2 s/question
+2026-11-05 22:28:10 INFO 05_generate_answers: [1050/1258] EM so far: 2.29%, 3.3 s/question
+2026-11-05 22:30:51 INFO 05_generate_answers: [1100/1258] EM so far: 2.18%, 3.3 s/question
+2026-11-05 22:33:44 INFO 05_generate_answers: [1150/1258] EM so far: 2.17%, 3.3 s/question
+2026-11-05 22:36:39 INFO 05_generate_answers: [1200/1258] EM so far: 2.08%, 3.3 s/question
+2026-11-05 22:39:13 INFO 05_generate_answers: [1250/1258] EM so far: 2.08%, 3.3 s/question
+2026-11-05 22:39:50 INFO 05_generate_answers: Exact match: 2.07%
+2026-11-05 22:39:50 INFO 05_generate_answers: Soft match    1%: 3.74%
+2026-11-05 22:39:50 INFO 05_generate_answers: Soft match    5%: 4.53%
+2026-11-05 22:39:50 INFO 05_generate_answers: Soft match   10%: 5.09%
+2026-11-05 22:39:50 INFO 05_generate_answers: Soft match   20%: 6.20%
+2026-11-05 22:39:50 INFO 05_generate_answers: Soft match   50%: 11.13%
+2026-11-05 22:39:50 INFO 05_generate_answers: Soft match   90%: 18.52%
+2026-11-05 22:39:50 INFO 05_generate_answers: No <answer> tag: 581/1258
+2026-11-05 22:39:50 INFO 05_generate_answers: Cut off at max_new_tokens=1024: 1/1258
+2026-11-05 22:39:50 INFO 05_generate_answers: Time: 3.3 s/question
+2026-11-05 22:39:50 INFO 05_generate_answers: Predictions written to results/generation/single_retrieval_qwen7b_fp16.jsonl, summary to results/generation/single_retrieval_qwen7b_fp16_summary.json
