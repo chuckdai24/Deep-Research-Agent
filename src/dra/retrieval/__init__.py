@@ -2,8 +2,8 @@
 Retrievers, one module per retrieval model.
 检索器，每种检索模型一个模块。
 
-    contriever   Contriever encoding + FAISS dense retrieval
-                 Contriever 编码 + FAISS 稠密检索
+    contriever   Contriever encoding + FAISS dense retrieval, and StepRetriever for ReAct steps
+                 Contriever 编码 + FAISS 稠密检索，以及 ReAct 每一步用的 StepRetriever
 
 The import below lets other code write "from dra.retrieval import DenseRetriever"
 instead of "from dra.retrieval.contriever import DenseRetriever".
@@ -11,7 +11,7 @@ instead of "from dra.retrieval.contriever import DenseRetriever".
 不用写完整的 "from dra.retrieval.contriever import DenseRetriever"。
 """
 
-from .contriever import ContrieverEncoder, DenseRetriever, mean_pooling
+from .contriever import ContrieverEncoder, DenseRetriever, StepRetriever, mean_pooling
 
 # Names exported by "from dra.retrieval import *" / "from dra.retrieval import *" 会导出的名字
-__all__ = ["ContrieverEncoder", "DenseRetriever", "mean_pooling"]
+__all__ = ["ContrieverEncoder", "DenseRetriever", "StepRetriever", "mean_pooling"]

@@ -55,3 +55,15 @@ def format_passages(passages):
             text = "\n".join(content.split("\n")[1:])
         format_reference += f"Doc {idx + 1} (Title: {title}) {text}\n"
     return format_reference
+
+
+# Official ReAct instruction, followed in the prompt by the 6 examples (methods/react.py) and the question.
+# Source: c5_task_evaluation/prompts/prompt_templetes.py, lines 89-94 (identical, including the final \n).
+# 官方 ReAct 指令，prompt 里后面接 6 个示例（methods/react.py）和问题。
+# 出处：prompt_templetes.py 第 89-94 行（逐字一致，包括结尾的 \n）。
+REACT_INSTRUCTION = """Solve a question answering task with interleaving Thought, Action, Observation steps.
+Thought can reason about the current situation, and Action can be three types:
+(1) Search[entity], which searches the exact entity on Wikipedia and returns the first paragraph if it exists. If not, it will return some similar entities to search.
+(2) Lookup[keyword], which returns the next sentence containing keyword in the current passage.
+(3) Finish[answer], which returns the answer and finishes the task.
+Here are some examples.\n"""

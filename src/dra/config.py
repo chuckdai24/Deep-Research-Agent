@@ -58,6 +58,10 @@ INDEX_PATH = INDEX_DIR / "contriever_Flat.index"
 # Cache of the index position -> passage id table: built from the corpus the first time (~15 s), read directly after.
 # 索引位置 -> 段落 id 映射表的缓存：第一次从语料生成（约 15 秒），之后直接读取。
 PASSAGE_IDS_CACHE = INDEX_DIR / "passage_ids.txt"
+# Cache of the byte position of every corpus line (data.CorpusReader, used by ReAct): built the first time
+# by scanning the corpus, read directly after (~47 MB).
+# 语料每一行字节位置的缓存（data.CorpusReader，ReAct 用）：第一次扫描语料生成，之后直接读取（约 47 MB）。
+LINE_OFFSETS_CACHE = INDEX_DIR / "corpus_line_offsets.npy"
 
 # Experiment outputs of this repository that are shared via git (evaluation, generated answers, logs).
 # 本仓库通过 git 共享的实验输出（评估结果、生成答案、日志）。
@@ -115,6 +119,15 @@ TEMPERATURE = 0.7
 # does not support it, so jobs there pass --dtype float16.
 # 阅读器权重的数值格式。官方用 bfloat16；csedu 上的 RTX 2080 Ti 不支持，所以那里的作业传 --dtype float16。
 READER_DTYPE = "bfloat16"
+
+# ReAct, same as the official run_evalution.py defaults: at most 20 rounds (--max_iter; its help text says 10,
+# but the value is 20), and the top 3 passages of every Search go into the prompt (--retrieval_topk).
+# Every Search also retrieves RETRIEVAL_K (1000) passages for retrieval evaluation (--retrieval_eval_ks).
+# ReAct，与官方 run_evalution.py 的默认值相同：最多 20 轮（--max_iter；帮助文字写的是 10，实际值是 20），
+# 每次 Search 的前 3 个段落放进 prompt（--retrieval_topk）。每次 Search 还会检索 RETRIEVAL_K（1000）个段落，
+# 用于检索评估（--retrieval_eval_ks）。
+REACT_MAX_ITER = 20
+REACT_TOPK = 3
 
 # Answer scoring, same as the official run_evalution.py (line 331 and soft_exact_match(decimals=3)):
 # exact match plus soft match at these tolerances (%). Table 8 reports 10/20/50/90.

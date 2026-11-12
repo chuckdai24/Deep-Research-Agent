@@ -6,6 +6,7 @@ data.py 的单元测试：用临时目录里的小文件，不依赖真实语料
 import json
 
 from dra.data import (
+    CorpusReader,
     load_passage_ids,
     load_passages,
     load_qrels,
@@ -88,3 +89,24 @@ def test_load_passages_only_wanted_ids(tmp_path):
     assert passages == {"10-0001": CORPUS[0], "20-0001": CORPUS[2]}
 
     assert len(load_passages(corpus)) == 3
+
+
+def test_corpus_reader_reads_lines_by_number_and_caches_offsets(tmp_path):
+    corpus = tmp_path / "corpus.jsonl"
+    cache = tmp_path / "offsets.npy"
+    # Non-ASCII text takes several bytes per character, so byte positions != character positions.
+    # 非英文字符每个占好几个字节，所以字节位置 != 字符位置。
+    rows = [*CORPUS, {"id": "30-0001", "contents": "Zürich\n苏黎世"}]
+    corpus.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8")
+
+    reader = CorpusReader(corpus, offsets_cache=cache)
+    assert len(reader) == 4
+    assert reader.get(3) == rows[3]
+    assert reader.get(0) == rows[0]  # any order / 任意顺序都能读
+    assert cache.exists()
+    reader.close()
+
+    # The second time the offsets come from the cache.   第二次从缓存读取位置表。
+    reader = CorpusReader(corpus, offsets_cache=cache)
+    assert reader.get(2) == rows[2]
+    reader.close()

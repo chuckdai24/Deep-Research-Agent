@@ -4,12 +4,15 @@ Unit tests for retrieval/contriever.py: pooling and FAISS search logic
 retrieval/contriever.py 的单元测试：池化与 FAISS 检索逻辑（用小索引和假编码器，不加载 Contriever）。
 """
 
+import json
+
 import faiss
 import numpy as np
 import pytest
 import torch
 
-from dra.retrieval import DenseRetriever, mean_pooling
+from dra.data import CorpusReader
+from dra.retrieval import DenseRetriever, StepRetriever, mean_pooling
 
 
 def test_mean_pooling_ignores_padding():
@@ -65,3 +68,49 @@ def test_search_drops_missing_results_when_k_exceeds_index(index_path):
 def test_passage_ids_must_match_index_size(index_path):
     with pytest.raises(AssertionError):
         DenseRetriever(index_path, ["a-1", "b-1"], FakeEncoder({}))
+
+
+def test_search_positions_returns_index_positions(index_path):
+    encoder = FakeEncoder({"q": [0, 1]})
+    retriever = DenseRetriever(index_path, ["a-1", "b-1", "c-1"], encoder)
+
+    [hits] = retriever.search_positions(["q"], k=2)
+
+    assert [pos for pos, _ in hits] == [1, 2]
+
+
+def write_corpus(path, ids):
+    with open(path, "w", encoding="utf-8") as f:
+        for doc_id in ids:
+            f.write(json.dumps({"id": doc_id, "title": doc_id.upper(), "contents": f"text of {doc_id}"}) + "\n")
+
+
+def test_step_retriever_returns_top_docs_and_full_ranking(index_path, tmp_path):
+    write_corpus(tmp_path / "corpus.jsonl", ["a-1", "b-1", "c-1"])
+    dense = DenseRetriever(index_path, ["a-1", "b-1", "c-1"], FakeEncoder({"q": [0, 1]}))
+    retriever = StepRetriever(dense, CorpusReader(tmp_path / "corpus.jsonl"), topk=1, eval_k=3)
+
+    docs, ranked = retriever.search_for_step("q")
+
+    # Only the top 1 passage with its text, but the ranking of all 3.
+    # 只有第 1 名带原文，但排序包含全部 3 个。
+    assert docs == [{"id": "b-1", "title": "B-1", "contents": "text of b-1"}]
+    assert [doc_id for doc_id, _ in ranked] == ["b-1", "c-1", "a-1"]
+
+
+def test_step_retriever_detects_wrong_corpus_order(index_path, tmp_path):
+    # Same passages, different line order: the line read is not the passage the index points to.
+    # 同样的段落、不同的行顺序：读出的那一行不是索引指向的段落。
+    write_corpus(tmp_path / "corpus.jsonl", ["c-1", "b-1", "a-1"])
+    dense = DenseRetriever(index_path, ["a-1", "b-1", "c-1"], FakeEncoder({"q": [1, 0]}))
+    retriever = StepRetriever(dense, CorpusReader(tmp_path / "corpus.jsonl"), topk=1, eval_k=3)
+
+    with pytest.raises(ValueError):
+        retriever.search_for_step("q")
+
+
+def test_step_retriever_corpus_size_must_match_index(index_path, tmp_path):
+    write_corpus(tmp_path / "corpus.jsonl", ["a-1", "b-1"])
+    dense = DenseRetriever(index_path, ["a-1", "b-1", "c-1"], FakeEncoder({}))
+    with pytest.raises(AssertionError):
+        StepRetriever(dense, CorpusReader(tmp_path / "corpus.jsonl"))

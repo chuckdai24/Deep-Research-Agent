@@ -8,16 +8,20 @@ Four kinds of data / 四类数据：
   2. qrels     relevant passages per question (TREC qrels format)
                每个问题的相关段落标注（TREC qrels 格式）
   3. corpus    Wikipedia passages (jsonl), plus the two lookup tables
-               "index position -> passage id" and "passage id -> passage record"
-               维基段落语料（jsonl），以及"索引位置 -> 段落 id"、"段落 id -> 段落记录"两张映射表
+               "index position -> passage id" and "passage id -> passage record",
+               and CorpusReader, which reads single lines by line number (for retrieval during ReAct)
+               维基段落语料（jsonl），以及"索引位置 -> 段落 id"、"段落 id -> 段落记录"两张映射表，
+               和按行号读取单行的 CorpusReader（ReAct 运行中检索时用）
   4. run file  retrieval results (TREC run format), which decouples retrieval from evaluation / generation
                检索结果（TREC run 格式），把检索和后续的评估 / 生成分开
 """
 
 import json
+from array import array
 from collections import defaultdict
 from pathlib import Path
 
+import numpy as np
 from tqdm import tqdm
 
 # ---------------------------------------------------------------------------
@@ -188,6 +192,73 @@ def load_passages(corpus_path, wanted_ids=None):
             if wanted is not None and len(passages) == len(wanted):
                 break  # all found, stop scanning / 需要的都找到了，提前结束扫描
     return passages
+
+
+def build_line_offsets(corpus_path):
+    """
+    Scan the corpus once and return the byte position where every line starts (int64 array; entry i = line i).
+    把语料扫描一遍，返回每一行在文件里从第几个字节开始（int64 数组；第 i 个元素 = 第 i 行）。
+
+    The file is read in binary mode, so the positions are exact byte counts that f.seek() can jump to.
+    用二进制方式读文件，所以得到的是准确的字节数，可以直接交给 f.seek() 跳过去。
+    """
+    # array("q") = a compact list of 64-bit integers (a Python list of 5.9M ints would take ~5x more memory).
+    # array("q") 是紧凑的 64 位整数列表（同样 590 万个数，用 Python 列表要多占约 5 倍内存）。
+    offsets = array("q")
+    position = 0
+    with open(corpus_path, "rb") as f:
+        for line in tqdm(f, desc="build line offsets", unit=" lines"):
+            offsets.append(position)
+            position += len(line)
+    return np.frombuffer(offsets, dtype=np.int64).copy()
+
+
+class CorpusReader:
+    """
+    Read single corpus lines by line number, without loading the whole corpus into memory.
+    按行号读取语料中的某一行，不必把整个语料读进内存。
+
+    Why: ReAct searches with queries the model writes while it runs, so which passages are needed is only
+    known at that moment; load_passages would have to scan the 3.8 GB file for every search (~2 min).
+    Instead the start position of every line is recorded once (build_line_offsets, ~47 MB for 5.9M lines),
+    and a line is read by jumping straight to it (milliseconds).
+    为什么需要：ReAct 用模型运行中写出的查询去检索，需要哪些段落要到那一刻才知道；用 load_passages
+    就得每次检索都把 3.8 GB 的文件扫一遍（约 2 分钟）。所以先记下每一行的起始位置（build_line_offsets，
+    590 万行约 47 MB），之后直接跳到那一行去读（几毫秒）。
+
+    Line number = index position (see load_passage_ids), so a FAISS result can be read directly.
+    行号 = 索引位置（见 load_passage_ids），所以 FAISS 返回的位置可以直接拿来读。
+
+    offsets_cache: .npy file; read it if it exists, otherwise scan the corpus and write it for next time.
+    offsets_cache：.npy 文件；存在就直接读，不存在就扫描语料后写入，下次直接读。
+    """
+
+    def __init__(self, corpus_path, offsets_cache=None):
+        self.corpus_path = Path(corpus_path)
+        if offsets_cache is not None and Path(offsets_cache).exists():
+            self.offsets = np.load(offsets_cache)
+        else:
+            self.offsets = build_line_offsets(self.corpus_path)
+            if offsets_cache is not None:
+                Path(offsets_cache).parent.mkdir(parents=True, exist_ok=True)
+                np.save(offsets_cache, self.offsets)
+        # Kept open for the whole run: opening the file for every read would be slower.
+        # 整个运行期间保持打开：每读一次就打开一次文件会更慢。
+        self._file = open(self.corpus_path, "rb")  # noqa: SIM115
+
+    def __len__(self):
+        return len(self.offsets)
+
+    def get(self, line_number):
+        """
+        Return line line_number of the corpus as a dict (e.g. {"id", "title", "section", "contents"}).
+        返回语料第 line_number 行，解析成字典（例如 {"id", "title", "section", "contents"}）。
+        """
+        self._file.seek(int(self.offsets[line_number]))
+        return json.loads(self._file.readline())
+
+    def close(self):
+        self._file.close()
 
 
 # ---------------------------------------------------------------------------

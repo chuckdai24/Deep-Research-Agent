@@ -11,7 +11,7 @@ then use extract_tag / parse_answer to pull out the contents of tags such as <an
 import re
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria, StoppingCriteriaList
 
 # ---------------------------------------------------------------------------
 # Model / 模型
@@ -35,6 +35,42 @@ def resolve_dtype(name):
     if name not in DTYPES:
         raise ValueError(f"unknown dtype {name!r}, choose from {sorted(DTYPES)}")
     return DTYPES[name]
+
+
+class StopOnSequence(StoppingCriteria):
+    """
+    Stop generating as soon as the output ends with one of the target strings.
+    输出的末尾一出现某个目标字符串，就停止生成。
+
+    Copied from the official StopOnSequence (c5_task_evaluation/src/llm_generator.py, lines 8-27).
+    ReAct uses it to stop at "Observation N:", so the model does not invent its own search results.
+    The comparison is on token ids: each target string is tokenised on its own and compared with the last
+    tokens of the sequence. The official version is kept instead of transformers' built-in stop_strings
+    because the two can stop at different places, e.g. when the model writes the same text with other tokens.
+    照搬官方 StopOnSequence（llm_generator.py 第 8-27 行）。ReAct 用它在 "Observation N:" 处停下，
+    免得模型自己编造检索结果。比较的是 token id：每个目标字符串单独分词，再和序列最后几个 token 比较。
+    用官方版本而不用 transformers 自带的 stop_strings，是因为两者可能停在不同的地方
+    （例如模型用别的 token 组合写出了同样的文字）。
+    """
+
+    def __init__(self, target_sequences, tokenizer):
+        # Encode the strings so we have the exact token-id patterns.   把字符串编码成准确的 token id 序列。
+        self.target_ids = [tokenizer.encode(seq, add_special_tokens=False) for seq in target_sequences]
+        self.target_lengths = [len(target_id) for target_id in self.target_ids]
+
+    def __call__(self, input_ids, scores, **kwargs):
+        # Make sure the target ids are on the same device.   目标 id 放到同一设备上。
+        targets = [torch.as_tensor(target_id, device=input_ids.device) for target_id in self.target_ids]
+
+        if input_ids.shape[1] < min(self.target_lengths):
+            return False
+
+        # Compare the tail of input_ids with every target.   把 input_ids 的末尾和每个目标比较。
+        for i, target in enumerate(targets):
+            if torch.equal(input_ids[0, -self.target_lengths[i] :], target):
+                return True
+
+        return False
 
 
 class LLM:
@@ -74,7 +110,7 @@ class LLM:
     # 装饰器：运行这个函数时 PyTorch 不记录用于训练的计算过程（不算梯度），省显存、更快。
     # 我们只使用模型，不训练模型。
     @torch.no_grad()
-    def generate(self, messages, max_new_tokens=1024, temperature=0.7):
+    def generate(self, messages, max_new_tokens=1024, temperature=0.7, stop_sequences=None):
         """
         Generate a reply to the chat messages and return only the newly generated text.
         根据对话 messages 生成回复，只返回新生成的文字。
@@ -82,8 +118,12 @@ class LLM:
         max_new_tokens: at most this many tokens are written (official default: 1024).
         temperature: 0.7 with sampling, as in the official code, so results vary between runs
                      unless the seed is fixed (dra.utils.set_seed).
+        stop_sequences: optional list of strings; generation stops as soon as the output ends with one of
+                        them (StopOnSequence). The returned text includes that string, as in the official code.
         max_new_tokens：最多写这么多个 token（官方默认 1024）。
         temperature：与官方一致取 0.7 并采样，所以不固定随机种子时每次结果会不同（见 dra.utils.set_seed）。
+        stop_sequences：可选的字符串列表；输出末尾一出现其中之一就停止生成（StopOnSequence）。
+                        与官方一致，返回的文字包含这个字符串。
         """
         # 1. Chat messages -> one string in the model's own chat format (for Qwen:
         #    "<|im_start|>system\n...<|im_end|>\n<|im_start|>user\n...<|im_end|>\n<|im_start|>assistant\n").
@@ -106,11 +146,17 @@ class LLM:
         #    一个 token 一个 token 地往后写，直到写出结束标记或达到 max_new_tokens。最慢的一步。
         #    do_sample：temperature > 0 时按概率抽下一个 token；为 0 时总选概率最高的。
         #    只有采样时 temperature 才有意义，否则传 None（避免警告）。
+        #    stopping_criteria: checked after every new token; None = only the usual end-of-turn / length limit.
+        #    stopping_criteria：每写一个新 token 检查一次；None = 只按通常的结束标记 / 长度上限停止。
+        stopping_criteria = (
+            StoppingCriteriaList([StopOnSequence(stop_sequences, self.tokenizer)]) if stop_sequences else None
+        )
         outputs = self.model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
             do_sample=temperature > 0,
             temperature=temperature if temperature > 0 else None,
+            stopping_criteria=stopping_criteria,
         )
 
         # 4. outputs[0] is the prompt followed by the new tokens; cut off the prompt and turn the rest back into text.

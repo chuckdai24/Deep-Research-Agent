@@ -85,7 +85,9 @@ class ContrieverEncoder:
         把文字列表编码成 (N, 768) 的 float32 矩阵，每行已 L2 归一化。
         """
         all_embs = []
-        for i in tqdm(range(0, len(texts), batch_size), desc="encode"):
+        # No progress bar for a single batch (e.g. one ReAct search), otherwise the log fills up with bars.
+        # 只有一批时（例如 ReAct 的一次搜索）不显示进度条，否则日志里会全是进度条。
+        for i in tqdm(range(0, len(texts), batch_size), desc="encode", disable=len(texts) <= batch_size):
             batch = texts[i : i + batch_size]
             # a. Tokenise: text -> token ids. padding=True pads shorter texts so the batch forms one matrix,
             #    and also returns attention_mask (1 = real token, 0 = padding).
@@ -129,6 +131,28 @@ class DenseRetriever:
             f"passage_ids ({len(passage_ids)}) does not match index size ({self.index.ntotal})"
         )
 
+    def search_positions(self, queries, k=1000, batch_size=32):
+        """
+        Like search, but return index positions instead of passage ids: a list as long as queries,
+        element i is [(position, score), ...] for queries[i], highest score first.
+        Positions are needed to read the passage text with data.CorpusReader (position = corpus line).
+        与 search 相同，但返回索引位置而不是段落 id：与 queries 等长的列表，第 i 个元素是
+        queries[i] 的 [(位置, 分数), ...]，分数从高到低。用 data.CorpusReader 读段落原文时需要位置
+        （位置 = 语料行号）。
+        """
+        # ① Encode: (n_queries, 768)                                     编码
+        query_embs = self.encoder.encode(queries, batch_size=batch_size)
+        # ② Search: inner product with every passage vector, keep the top k.
+        #    Both results are (n_queries, k): positions in the index and their scores.
+        #    搜索：与每个段落向量算内积，保留前 k 个。两个结果都是 (问题数, k)：索引位置和对应分数。
+        scores, indices = self.index.search(query_embs, k)
+        # ③ FAISS pads with -1 when it has fewer than k results; skip those.
+        #    结果不足 k 个时 FAISS 用 -1 补位，跳过。
+        return [
+            [(int(idx), float(s)) for idx, s in zip(row_idx, row_scores, strict=True) if idx >= 0]
+            for row_idx, row_scores in zip(indices, scores, strict=True)
+        ]
+
     def search(self, queries, k=1000, batch_size=32):
         """
         Return the k most similar passages for every query.
@@ -138,15 +162,62 @@ class DenseRetriever:
         sorted by score, highest first.
         返回与 queries 等长的列表，第 i 个元素是 queries[i] 的 [(段落 id, 分数), ...]，按分数降序。
         """
-        # ① Encode: (n_queries, 768)                                     编码
-        query_embs = self.encoder.encode(queries, batch_size=batch_size)
-        # ② Search: inner product with every passage vector, keep the top k.
-        #    Both results are (n_queries, k): positions in the index and their scores.
-        #    搜索：与每个段落向量算内积，保留前 k 个。两个结果都是 (问题数, k)：索引位置和对应分数。
-        scores, indices = self.index.search(query_embs, k)
-        # ③ Map positions to passage ids. FAISS pads with -1 when it has fewer than k results; skip those.
-        #    把位置翻译成段落 id。结果不足 k 个时 FAISS 用 -1 补位，跳过。
+        # Search, then map positions to passage ids.   检索，再把位置翻译成段落 id。
         return [
-            [(self.passage_ids[idx], float(s)) for idx, s in zip(row_idx, row_scores, strict=True) if idx >= 0]
-            for row_idx, row_scores in zip(indices, scores, strict=True)
+            [(self.passage_ids[pos], s) for pos, s in hits]
+            for hits in self.search_positions(queries, k=k, batch_size=batch_size)
         ]
+
+
+class StepRetriever:
+    """
+    Retrieval for one step of a deep research agent (ReAct): one query in, passages with their text out.
+    深度研究智能体（ReAct）每一步的检索：输入一个查询，返回带原文的段落。
+
+    Same as the official BasicRAG._search_for_step (c5_task_evaluation/methods/retrieval_augmented_models.py,
+    lines 61-77): retrieve the top eval_k (1000) passages, give the first topk (3) to the LLM, and keep
+    the full ranking for retrieval evaluation.
+    与官方 BasicRAG._search_for_step（retrieval_augmented_models.py 第 61-77 行）相同：检索前 eval_k（1000）个
+    段落，前 topk（3）个交给 LLM，完整排序留作检索评估。
+
+    Differences from the official retriever, none of which change the results:
+    - the text of the top passages is read from the corpus file by line number (data.CorpusReader),
+      instead of loading the whole corpus with HuggingFace datasets;
+    - the ranking holds (passage id, score) pairs instead of full passage records, because only the
+      ids are used for evaluation.
+    与官方检索器的不同（都不影响结果）：
+    - 前几个段落的原文按行号从语料文件里读（data.CorpusReader），而不是用 HuggingFace datasets
+      把整个语料读进来；
+    - 排序里存的是 (段落 id, 分数)，而不是完整的段落记录，因为评估只用到 id。
+    """
+
+    def __init__(self, dense_retriever, corpus_reader, topk=3, eval_k=1000):
+        self.dense = dense_retriever
+        self.corpus = corpus_reader
+        self.topk = topk
+        self.eval_k = eval_k
+        # Every index position needs a corpus line; a different count means a different corpus file.
+        # 每个索引位置都要对应一行语料；数量不同说明语料文件不对。
+        assert len(corpus_reader) == dense_retriever.index.ntotal, (
+            f"corpus lines ({len(corpus_reader)}) do not match index size ({dense_retriever.index.ntotal})"
+        )
+
+    def search_for_step(self, query):
+        """
+        Returns (docs, ranked) / 返回 (docs, ranked)：
+            docs    the top topk passage records, e.g. {"id", "title", "section", "contents"}  (for the LLM)
+                    前 topk 个段落记录（交给 LLM）
+            ranked  [(passage_id, score), ...] for the top eval_k, highest first  (for evaluation)
+                    前 eval_k 个的 [(段落 id, 分数), ...]，分数从高到低（用于评估）
+        """
+        hits = self.dense.search_positions([query], k=self.eval_k, batch_size=1)[0]
+        ranked = [(self.dense.passage_ids[pos], score) for pos, score in hits]
+        docs = []
+        for pos, _score in hits[: self.topk]:
+            doc = self.corpus.get(pos)
+            # Safety check: the line read must be the passage the index points to.
+            # 安全检查：读出来的这一行必须是索引指向的那个段落。
+            if doc["id"] != self.dense.passage_ids[pos]:
+                raise ValueError(f"corpus line {pos} has id {doc['id']}, expected {self.dense.passage_ids[pos]}")
+            docs.append(doc)
+        return docs, ranked

@@ -61,7 +61,15 @@ cat results/eval_official/retrieval_summary.json
 sbatch --time=01:00:00 cluster/step1_2_single_retrieval.sbatch --limit 5   # test run
 sbatch cluster/step1_2_single_retrieval.sbatch                             # all queries
 cat results/generation/single_retrieval_qwen7b_fp16_summary.json
+
+# Step 1.2 ReAct (script 05 --method react on 2 GPUs; loads the index itself, no run file needed)
+sbatch --time=01:00:00 cluster/step1_2_react.sbatch --limit 3 --output results/generation/react_test.jsonl
+sbatch cluster/step1_2_react.sbatch                                         # all queries
+cat results/generation/react_qwen7b_fp16_summary.json
 ```
+
+Script 05 resumes like the official code: questions already in the output file are skipped, so a stopped job
+can be submitted again with the same command.
 
 `setup.sh` is safe to re-run; finished steps are skipped and an interrupted download resumes.
 Optionally add `source ~/group18-project/cluster/env.sh` to `~/.bashrc` to load the environment at login.
@@ -106,6 +114,7 @@ python scripts/02_build_index.py            # build the index, several hours (no
 python scripts/03_retrieve.py               # top-1000 per query -> runs/*.trec
 python scripts/04_evaluate_retrieval.py     # entity-level R@k -> results/eval/
 python scripts/05_generate_answers.py       # reader + scoring -> results/generation/
+python scripts/05_generate_answers.py --method react   # ReAct, searches while running
 ```
 
 Every script supports `-h`. Defaults are in `src/dra/config.py`; every run writes a log to `results/logs/`.
@@ -120,7 +129,7 @@ Every script supports `-h`. Defaults are in `src/dra/config.py`; every run write
 │   ├── evaluation.py        Entity-level Recall@k, official answer metric
 │   ├── prompts.py           Prompt templates (copied from the official code)
 │   ├── llm.py               Reader loading, generation, answer parsing
-│   └── methods/             One module per QA method (single_retrieval.py, ...)
+│   └── methods/             One module per QA method (single_retrieval.py, react.py)
 ├── scripts/01–05            One entry point per pipeline step
 ├── cluster/                 csedu environment, setup and SLURM job scripts
 ├── tests/                   Unit tests (no corpus, index or GPU needed)
@@ -210,7 +219,14 @@ cat results/eval_official/retrieval_summary.json
 sbatch --time=01:00:00 cluster/step1_2_single_retrieval.sbatch --limit 5   # 先测 5 题
 sbatch cluster/step1_2_single_retrieval.sbatch                             # 全部题目
 cat results/generation/single_retrieval_qwen7b_fp16_summary.json
+
+# Step 1.2 ReAct（在 2 块 GPU 上运行脚本 05 --method react；自己加载索引，不需要 run 文件）
+sbatch --time=01:00:00 cluster/step1_2_react.sbatch --limit 3 --output results/generation/react_test.jsonl
+sbatch cluster/step1_2_react.sbatch                                         # 全部题目
+cat results/generation/react_qwen7b_fp16_summary.json
 ```
+
+脚本 05 和官方代码一样支持断点续跑：输出文件里已有的题会被跳过，所以作业停止后用同样的命令再提交一次即可。
 
 `setup.sh` 可以重复运行：已完成的步骤会跳过，中断的下载会从断点继续。
 可选：把 `source ~/group18-project/cluster/env.sh` 加进 `~/.bashrc`，登录时自动加载环境。
@@ -255,6 +271,7 @@ python scripts/02_build_index.py            # 建索引，需要几个小时（c
 python scripts/03_retrieve.py               # 每题检索 Top-1000 -> runs/*.trec
 python scripts/04_evaluate_retrieval.py     # 实体级 R@k -> results/eval/
 python scripts/05_generate_answers.py       # 阅读器 + 判分 -> results/generation/
+python scripts/05_generate_answers.py --method react   # ReAct，运行中检索
 ```
 
 所有脚本都支持 `-h`。默认值在 `src/dra/config.py`；每次运行都会在 `results/logs/` 写一份日志。
@@ -269,7 +286,7 @@ python scripts/05_generate_answers.py       # 阅读器 + 判分 -> results/gene
 │   ├── evaluation.py        实体级 Recall@k、官方答案判分
 │   ├── prompts.py           prompt 模板（取自官方代码）
 │   ├── llm.py               阅读器加载、生成、答案解析
-│   └── methods/             每种问答方法一个模块（single_retrieval.py 等）
+│   └── methods/             每种问答方法一个模块（single_retrieval.py、react.py）
 ├── scripts/01–05            每个流程步骤一个入口脚本
 ├── cluster/                 csedu 环境、安装与 SLURM 作业脚本
 ├── tests/                   单元测试（不需要语料、索引或 GPU）
