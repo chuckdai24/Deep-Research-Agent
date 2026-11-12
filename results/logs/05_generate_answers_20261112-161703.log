@@ -1,0 +1,72 @@
+2026-11-12 16:17:03 INFO 05_generate_answers: Log file: /home/chengzhidai/group18-project/results/logs/05_generate_answers_20261112-161703.log
+2026-11-12 16:17:03 INFO 05_generate_answers: Arguments:
+2026-11-12 16:17:03 INFO 05_generate_answers:   corpus_path = /vol/csedu-nobackup/course/I00041_informationretrieval/shared/trqa/data/shared/corpus_wikipedia_en-20251001_rewritten_partial.jsonl
+2026-11-12 16:17:03 INFO 05_generate_answers:   dtype = float16
+2026-11-12 16:17:03 INFO 05_generate_answers:   eval_k = 1000
+2026-11-12 16:17:03 INFO 05_generate_answers:   index_path = /vol/csedu-nobackup/course/I00041_informationretrieval/users/chengzhidai/trqa_experiments/indices/wiki_partial/contriever_partial/contriever_Flat.index
+2026-11-12 16:17:03 INFO 05_generate_answers:   limit = None
+2026-11-12 16:17:03 INFO 05_generate_answers:   log_every = 50
+2026-11-12 16:17:03 INFO 05_generate_answers:   max_iter = 20
+2026-11-12 16:17:03 INFO 05_generate_answers:   max_new_tokens = 1024
+2026-11-12 16:17:03 INFO 05_generate_answers:   method = react
+2026-11-12 16:17:03 INFO 05_generate_answers:   model = Qwen/Qwen2.5-7B-Instruct
+2026-11-12 16:17:03 INFO 05_generate_answers:   offsets_cache = /vol/csedu-nobackup/course/I00041_informationretrieval/users/chengzhidai/corpus_line_offsets_official.npy
+2026-11-12 16:17:03 INFO 05_generate_answers:   output = results/generation/react_qwen7b_fp16.jsonl
+2026-11-12 16:17:03 INFO 05_generate_answers:   passage_ids_cache = /vol/csedu-nobackup/course/I00041_informationretrieval/users/chengzhidai/passage_ids_official.txt
+2026-11-12 16:17:03 INFO 05_generate_answers:   qrels = /home/chengzhidai/group18-project/external/total-recall-qa/dataset/TRQA/wiki2/test/trec_qrels_wiki2_test.txt
+2026-11-12 16:17:03 INFO 05_generate_answers:   queries = /home/chengzhidai/group18-project/external/total-recall-qa/dataset/TRQA/wiki2/test/queries_wiki2_test.jsonl
+2026-11-12 16:17:03 INFO 05_generate_answers:   retriever_model = facebook/contriever-msmarco
+2026-11-12 16:17:03 INFO 05_generate_answers:   run_file = /home/chengzhidai/group18-project/runs/contriever_wiki2_test.trec
+2026-11-12 16:17:03 INFO 05_generate_answers:   runs_dir = /home/chengzhidai/group18-project/runs
+2026-11-12 16:17:03 INFO 05_generate_answers:   seed = 42
+2026-11-12 16:17:03 INFO 05_generate_answers:   temperature = 0.7
+2026-11-12 16:17:03 INFO 05_generate_answers:   topk = 3
+2026-11-12 16:17:03 INFO 05_generate_answers: Already in results/generation/react_qwen7b_fp16.jsonl: 0, to do now: 1258
+2026-11-12 16:17:03 INFO 05_generate_answers: Loading reader Qwen/Qwen2.5-7B-Instruct (float16)
+2026-11-12 16:18:08 INFO 05_generate_answers: Weights per device: {'cuda:0': 169, 'cuda:1': 170}
+2026-11-12 16:18:13 INFO 05_generate_answers: Loading index /vol/csedu-nobackup/course/I00041_informationretrieval/users/chengzhidai/trqa_experiments/indices/wiki_partial/contriever_partial/contriever_Flat.index
+2026-11-12 16:22:49 INFO 05_generate_answers: Index vectors: 5910177
+2026-11-12 16:41:16 INFO 05_generate_answers: [50/1258] EM so far (this run): 16.00%, 22.1 s/question
+2026-11-12 16:58:13 INFO 05_generate_answers: [100/1258] EM so far (this run): 11.00%, 21.2 s/question
+2026-11-12 17:16:50 INFO 05_generate_answers: [150/1258] EM so far (this run): 8.00%, 21.6 s/question
+2026-11-12 17:38:40 INFO 05_generate_answers: [200/1258] EM so far (this run): 6.50%, 22.8 s/question
+2026-11-12 17:57:33 INFO 05_generate_answers: [250/1258] EM so far (this run): 6.40%, 22.7 s/question
+2026-11-12 18:15:25 INFO 05_generate_answers: [300/1258] EM so far (this run): 5.33%, 22.5 s/question
+2026-11-12 18:34:38 INFO 05_generate_answers: [350/1258] EM so far (this run): 5.14%, 22.6 s/question
+2026-11-12 18:55:01 INFO 05_generate_answers: [400/1258] EM so far (this run): 4.75%, 22.8 s/question
+2026-11-12 19:20:15 INFO 05_generate_answers: [450/1258] EM so far (this run): 4.22%, 23.7 s/question
+2026-11-12 19:42:58 INFO 05_generate_answers: [500/1258] EM so far (this run): 4.00%, 24.0 s/question
+2026-11-12 20:02:43 INFO 05_generate_answers: [550/1258] EM so far (this run): 3.64%, 24.0 s/question
+2026-11-12 20:18:33 INFO 05_generate_answers: [600/1258] EM so far (this run): 4.17%, 23.6 s/question
+2026-11-12 20:33:11 INFO 05_generate_answers: [650/1258] EM so far (this run): 5.08%, 23.1 s/question
+2026-11-12 20:50:47 INFO 05_generate_answers: [700/1258] EM so far (this run): 5.43%, 23.0 s/question
+2026-11-12 21:09:45 INFO 05_generate_answers: [750/1258] EM so far (this run): 6.00%, 23.0 s/question
+2026-11-12 21:28:05 INFO 05_generate_answers: [800/1258] EM so far (this run): 6.00%, 22.9 s/question
+2026-11-12 21:45:21 INFO 05_generate_answers: [850/1258] EM so far (this run): 5.65%, 22.8 s/question
+2026-11-12 22:06:25 INFO 05_generate_answers: [900/1258] EM so far (this run): 5.33%, 22.9 s/question
+2026-11-12 22:24:58 INFO 05_generate_answers: [950/1258] EM so far (this run): 5.05%, 22.9 s/question
+2026-11-12 22:44:08 INFO 05_generate_answers: [1000/1258] EM so far (this run): 4.90%, 22.9 s/question
+2026-11-12 23:07:24 INFO 05_generate_answers: [1050/1258] EM so far (this run): 4.67%, 23.1 s/question
+2026-11-12 23:27:06 INFO 05_generate_answers: [1100/1258] EM so far (this run): 4.55%, 23.1 s/question
+2026-11-12 23:43:56 INFO 05_generate_answers: [1150/1258] EM so far (this run): 4.43%, 23.0 s/question
+2026-11-13 00:02:10 INFO 05_generate_answers: [1200/1258] EM so far (this run): 4.42%, 23.0 s/question
+2026-11-13 00:20:37 INFO 05_generate_answers: [1250/1258] EM so far (this run): 4.24%, 22.9 s/question
+2026-11-13 00:23:57 INFO 05_generate_answers: Questions in results/generation/react_qwen7b_fp16.jsonl: 1258 (this run: 1258)
+2026-11-13 00:23:57 INFO 05_generate_answers: Exact match: 4.29%
+2026-11-13 00:23:57 INFO 05_generate_answers: Soft match    1%: 9.06%
+2026-11-13 00:23:57 INFO 05_generate_answers: Soft match    5%: 12.64%
+2026-11-13 00:23:57 INFO 05_generate_answers: Soft match   10%: 13.28%
+2026-11-13 00:23:57 INFO 05_generate_answers: Soft match   20%: 14.31%
+2026-11-13 00:23:57 INFO 05_generate_answers: Soft match   50%: 19.24%
+2026-11-13 00:23:57 INFO 05_generate_answers: Soft match   90%: 29.33%
+2026-11-13 00:23:57 INFO 05_generate_answers: seconds_per_question: 22.9461
+2026-11-13 00:23:57 INFO 05_generate_answers: forced_finish: 0
+2026-11-13 00:23:57 INFO 05_generate_answers: mean_num_searches: 2.6725
+2026-11-13 00:23:57 INFO 05_generate_answers: mean_llm_calls: 4.5922
+2026-11-13 00:23:57 INFO 05_generate_answers: entity_recall@3: 1.0456
+2026-11-13 00:23:57 INFO 05_generate_answers: entity_recall@10: 2.683
+2026-11-13 00:23:57 INFO 05_generate_answers: entity_recall@100: 11.3947
+2026-11-13 00:23:57 INFO 05_generate_answers: entity_recall@1000: 33.767
+2026-11-13 00:23:57 INFO 05_generate_answers: entity_recall: 39.8466
+2026-11-13 00:23:57 INFO 05_generate_answers: Predictions written to results/generation/react_qwen7b_fp16.jsonl, summary to results/generation/react_qwen7b_fp16_summary.json
+2026-11-13 00:23:57 INFO 05_generate_answers: Rankings written to /home/chengzhidai/group18-project/runs/react_qwen7b_fp16.trec and /home/chengzhidai/group18-project/runs/react_qwen7b_fp16_steps.jsonl
