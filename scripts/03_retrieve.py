@@ -15,7 +15,7 @@ Idea / 思路：
 
 Usage / 用法：
     python scripts/03_retrieve.py
-    python scripts/03_retrieve.py --k 1000 --output results/runs/contriever_wiki2_test.trec
+    python scripts/03_retrieve.py --k 1000 --output runs/contriever_wiki2_test.trec
 """
 
 import argparse

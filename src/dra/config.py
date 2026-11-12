@@ -59,12 +59,15 @@ INDEX_PATH = INDEX_DIR / "contriever_Flat.index"
 # 索引位置 -> 段落 id 映射表的缓存：第一次从语料生成（约 15 秒），之后直接读取。
 PASSAGE_IDS_CACHE = INDEX_DIR / "passage_ids.txt"
 
-# Experiment outputs of this repository (retrieval results, evaluation, generated answers).
-# 本仓库的实验输出（检索结果、评估结果、生成答案）。
+# Experiment outputs of this repository that are shared via git (evaluation, generated answers, logs).
+# 本仓库通过 git 共享的实验输出（评估结果、生成答案、日志）。
 OUTPUT_DIR = REPO_ROOT / "results"
+# Intermediate data produced while running (TREC run files, ~70 MB each): not tracked by git.
+# 运行过程中产生的中间数据（TREC run 文件，每个约 70 MB）：不进 git。
+RUNS_DIR = REPO_ROOT / "runs"
 # Retrieval results: written by step 3, read by steps 4 and 5.
 # 检索结果：步骤 3 写入，步骤 4、5 读取。
-DEFAULT_RUN_FILE = OUTPUT_DIR / "runs" / "contriever_wiki2_test.trec"
+DEFAULT_RUN_FILE = RUNS_DIR / "contriever_wiki2_test.trec"
 # Run logs: every script run writes one timestamped log file here.
 # 运行日志：每次运行脚本在这里生成一个带时间戳的日志文件。
 LOG_DIR = OUTPUT_DIR / "logs"

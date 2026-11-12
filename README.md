@@ -103,7 +103,7 @@ export TRQA_DATA_DIR=/path/to/data          # folder with the corpus and index, 
 
 python scripts/01_prepare_corpus.py         # download the corpus (not needed on csedu)
 python scripts/02_build_index.py            # build the index, several hours (not needed on csedu)
-python scripts/03_retrieve.py               # top-1000 per query -> results/runs/*.trec
+python scripts/03_retrieve.py               # top-1000 per query -> runs/*.trec
 python scripts/04_evaluate_retrieval.py     # entity-level R@k -> results/eval/
 python scripts/05_generate_answers.py       # reader + scoring -> results/generation/
 ```
@@ -125,10 +125,11 @@ Every script supports `-h`. Defaults are in `src/dra/config.py`; every run write
 ├── cluster/                 csedu environment, setup and SLURM job scripts
 ├── tests/                   Unit tests (no corpus, index or GPU needed)
 ├── external/total-recall-qa Official repository (git submodule, not modified)
-└── results/                 Outputs (not tracked by git)
+├── runs/                    Retrieval run files (intermediate, not tracked by git)
+└── results/                 Evaluation, generated answers and logs (tracked by git)
 ```
 
-Steps exchange data through files in `results/` (retrieval results are TREC run files),
+Steps exchange data through files in `runs/` and `results/` (retrieval results are TREC run files in `runs/`),
 so later steps can be changed and re-run without repeating retrieval.
 
 ### Consistency with the official implementation
@@ -251,7 +252,7 @@ export TRQA_DATA_DIR=/path/to/data          # 语料和索引所在的文件夹�
 
 python scripts/01_prepare_corpus.py         # 下载语料（csedu 上不需要）
 python scripts/02_build_index.py            # 建索引，需要几个小时（csedu 上不需要）
-python scripts/03_retrieve.py               # 每题检索 Top-1000 -> results/runs/*.trec
+python scripts/03_retrieve.py               # 每题检索 Top-1000 -> runs/*.trec
 python scripts/04_evaluate_retrieval.py     # 实体级 R@k -> results/eval/
 python scripts/05_generate_answers.py       # 阅读器 + 判分 -> results/generation/
 ```
@@ -273,10 +274,11 @@ python scripts/05_generate_answers.py       # 阅读器 + 判分 -> results/gene
 ├── cluster/                 csedu 环境、安装与 SLURM 作业脚本
 ├── tests/                   单元测试（不需要语料、索引或 GPU）
 ├── external/total-recall-qa 官方仓库（git submodule，不修改）
-└── results/                 输出（不进 git）
+├── runs/                    检索 run 文件（中间数据，不进 git）
+└── results/                 评估结果、生成答案和日志（进 git）
 ```
 
-各步骤通过 `results/` 里的文件衔接（检索结果是 TREC run 文件），
+各步骤通过 `runs/` 和 `results/` 里的文件衔接（检索结果是 `runs/` 里的 TREC run 文件），
 所以修改并重跑后面的步骤时不需要重新检索。
 
 ### 与官方实现的一致性

@@ -9,7 +9,7 @@
 #     tail -f results/step1_1_retrieval-*.out  # follow the output / 实时看输出
 #
 # Outputs / 输出：
-#     results/runs/contriever_wiki2_test_official.trec
+#     runs/contriever_wiki2_test_official.trec
 #     results/eval_official/retrieval_summary.json
 #     results/logs/                            # log files of 03 and 04 / 03 和 04 的日志
 
@@ -55,9 +55,9 @@ python scripts/03_retrieve.py \
     --index_path "$TRQA_CONTRIEVER_INDEX" \
     --corpus_path "$TRQA_CORPUS" \
     --passage_ids_cache "$MYDATA/passage_ids_official.txt" \
-    --output results/runs/contriever_wiki2_test_official.trec
+    --output runs/contriever_wiki2_test_official.trec
 
 # 04: entity-level Recall@3/10/100/1000.   04：实体级 Recall@3/10/100/1000。
 python scripts/04_evaluate_retrieval.py \
-    --run_file results/runs/contriever_wiki2_test_official.trec \
+    --run_file runs/contriever_wiki2_test_official.trec \
     --output_dir results/eval_official

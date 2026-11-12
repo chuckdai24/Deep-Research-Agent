@@ -44,7 +44,7 @@ nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader
 # --dtype float16: the RTX 2080 Ti has no bfloat16 (the official setting); this is a known deviation.
 # --dtype float16：RTX 2080 Ti 不支持官方用的 bfloat16；这是已知的一处不同。
 python scripts/05_generate_answers.py \
-    --run_file results/runs/contriever_wiki2_test_official.trec \
+    --run_file runs/contriever_wiki2_test_official.trec \
     --corpus_path "$TRQA_CORPUS" \
     --model Qwen/Qwen2.5-7B-Instruct \
     --dtype float16 \

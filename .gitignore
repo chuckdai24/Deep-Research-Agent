@@ -31,6 +31,6 @@ logs/
 .ruff_cache/
 *.memmap
 
-# Results: keep folder structure only, add result files with git add -f
-results/*
-!results/.gitkeep
+# Results are committed (delete debug results before committing); run files go to runs/ (ignored above).
+# Re-include results/logs, which the logs/ rule above would otherwise ignore.
+!results/logs/

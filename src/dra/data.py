@@ -208,7 +208,7 @@ def write_trec_run(path, results, run_name="contriever"):
     官方 run_evalution.py 的 --retrieval_results_file 也接受这个格式。
     """
     path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)  # create results/runs/ if missing / 文件夹不存在就创建
+    path.parent.mkdir(parents=True, exist_ok=True)  # create runs/ if missing / 文件夹不存在就创建
     with open(path, "w", encoding="utf-8") as f:
         for qid, ranked in results.items():
             for rank, (doc_id, score) in enumerate(ranked, start=1):
