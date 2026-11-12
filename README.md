@@ -138,7 +138,7 @@ so later steps can be changed and re-run without repeating retrieval.
 - System prompt, `<information>` template and passage format match the official `SingleRetrieval`.
 - Answers are scored with the official `soft_exact_match`: EM and SM at 1/5/10/20/50/90%, `decimals=3`, as in `run_evalution.py`.
 - The reader runs in fp16 on csedu (`--dtype float16`, split over 2 GPUs); the official setting is bf16, which the RTX 2080 Ti does not support.
-- `05_generate_answers.py --answer_fallback` (use the last line when no `<answer>` tag is produced) is **not** an official setting.
+- As in the official `get_answer`, only the `<answer>` tag is parsed; an output without it has no answer and is scored as wrong.
 
 ### Development
 
@@ -286,7 +286,7 @@ python scripts/05_generate_answers.py       # 阅读器 + 判分 -> results/gene
 - system prompt、`<information>` 模板和段落格式与官方 `SingleRetrieval` 一致。
 - 答案用官方 `soft_exact_match` 判分：EM 和 SM 1/5/10/20/50/90%，`decimals=3`，与 `run_evalution.py` 一致。
 - 阅读器在 csedu 上用 fp16 运行（`--dtype float16`，分在 2 块 GPU 上）；官方设定是 bf16，RTX 2080 Ti 不支持。
-- `05_generate_answers.py --answer_fallback`（没有 `<answer>` 标签时取最后一行）**不是**官方设定。
+- 与官方 `get_answer` 一致，只解析 `<answer>` 标签；没有标签的输出没有答案，按答错算。
 
 ### 开发
 

@@ -154,20 +154,14 @@ def extract_tag(text, tag):
     return match.group(1).strip() if match else None
 
 
-def parse_answer(text, fallback=False):
+def parse_answer(text):
     """
     Extract the answer from the model output.
     从模型输出中取出答案。
 
-    The official code only accepts <answer> tags: no tag means no answer (None).
-    Small models (e.g. 1.5B) often answer directly without tags; with fallback=True the last non-empty
-    line is used instead. This is NOT the official setting and must be stated when reporting results.
-    官方只认 <answer> 标签：没有标签就是没有答案（None）。
-    小模型（如 1.5B）经常不写标签、直接给答案；fallback=True 时退而取输出的最后一个非空行。
-    这不是官方设定，报告结果时需注明。
+    As in the official get_answer (retrieval_augmented_models.py, line 89): only the <answer> tag counts,
+    no tag means no answer (None), which is scored as wrong.
+    与官方 get_answer（retrieval_augmented_models.py 第 89 行）一致：只认 <answer> 标签，
+    没有标签就是没有答案（None），判分时按答错算。
     """
-    answer = extract_tag(text, "answer")
-    if answer is None and fallback:
-        lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
-        answer = lines[-1] if lines else None
-    return answer
+    return extract_tag(text, "answer")

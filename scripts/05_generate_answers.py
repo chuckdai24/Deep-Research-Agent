@@ -111,13 +111,6 @@ def main():
         default=config.SEED,
         help="random seed, makes sampling reproducible / 随机种子，使采样结果可复现",
     )
-    # --- Scoring / 判分 ---
-    parser.add_argument(
-        "--answer_fallback",
-        action="store_true",
-        help="if there is no <answer> tag, use the last line (NOT the official setting) "
-        "/ 没有 <answer> 标签时取最后一行作答案（非官方设定）",
-    )
     # --- Run control / 运行控制 ---
     parser.add_argument(
         "--limit",
@@ -185,7 +178,7 @@ def main():
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     scores = []  # score_answer result of every question / 每道题的 score_answer 结果
-    n_no_answer = 0  # questions without an <answer> tag (and no fallback) / 没有 <answer> 标签（且未用 fallback）的题数
+    n_no_answer = 0  # questions without an <answer> tag / 没有 <answer> 标签的题数
     n_truncated = 0  # questions cut off at max_new_tokens / 达到 max_new_tokens 被截断的题数
     start = time.time()
     with open(args.output, "w", encoding="utf-8") as f:
@@ -209,7 +202,7 @@ def main():
 
             # c. Extract the text inside <answer>...</answer>; None if there is no tag.
             #    取出 <answer>...</answer> 里的内容；没有标签时为 None。
-            pred = parse_answer(raw, fallback=args.answer_fallback)
+            pred = parse_answer(raw)
 
             # d. Score against the gold answer, as in the official code:
             #    {"exact_match": bool, "soft_matches": {1.0: bool, 5.0: bool, ..., 90.0: bool}}.
@@ -239,9 +232,9 @@ def main():
                         "prediction": pred,
                         "raw_output": raw,
                         **score,
-                        # For analysis: whether the official <answer> tag is there (independent of --answer_fallback),
+                        # For analysis: whether the official <answer> tag is there,
                         # how many passages went into the prompt, token counts (llm.last_usage) and time.
-                        # 分析用：有没有官方要求的 <answer> 标签（与 --answer_fallback 无关）、prompt 里放了几个段落、
+                        # 分析用：有没有官方要求的 <answer> 标签、prompt 里放了几个段落、
                         # token 数（llm.last_usage）和用时。
                         "has_answer_tag": extract_tag(raw, "answer") is not None,
                         "num_passages": len(passages),

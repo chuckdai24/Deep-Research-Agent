@@ -35,12 +35,11 @@ def test_extract_tag_multiline():
 def test_parse_answer_without_tag():
     raw = "<think>reasoning</think>\n1912"
     assert parse_answer(raw) is None  # official: no <answer>, no answer / 官方设定：没有 <answer> 就没有答案
-    assert parse_answer(raw, fallback=True) == "1912"  # falls back to the last non-empty line / 退而取最后一个非空行
 
 
-def test_parse_answer_prefers_tag_over_fallback():
-    assert parse_answer("<answer>1886</answer>\nextra", fallback=True) == "1886"
+def test_parse_answer_with_tag():
+    assert parse_answer("<answer>1886</answer>\nextra") == "1886"
 
 
 def test_parse_answer_empty_output():
-    assert parse_answer("", fallback=True) is None
+    assert parse_answer("") is None
