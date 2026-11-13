@@ -21,7 +21,7 @@ Course project for Information Retrieval (NWI-I00041, Radboud University), based
 | Step | Description | Status |
 |---|---|---|
 | 1.1 | Retrieval reproduction (Table 4: R@3/10/100/1000) | Done |
-| 1.2 | Single retrieval + reader, and one DRA (Table 8: EM, SM 10/20/50/90%) | Single retrieval done; ReAct in progress |
+| 1.2 | Single retrieval + reader, and one DRA (Table 8: EM, SM 10/20/50/90%) | Done (single retrieval and ReAct) |
 | 2 | Own DRA method | Not started |
 
 ### Results
@@ -34,15 +34,30 @@ Course project for Information Retrieval (NWI-I00041, Radboud University), based
 | Ours, csedu | partial | official (HF `mahtaa/trqa_experiments`) | 0.93 | 2.18 | 8.39 | 26.30 |
 | Ours, local | partial | built with the official `index_builder.py` | 0.93 | 2.18 | 8.39 | 26.31 |
 
-**Step 1.2** — single retrieval (top-50 passages) + Qwen2.5-7B-Instruct on Wiki2 test, partial corpus (%):
+**Step 1.2** — Qwen2.5-7B-Instruct reader on Wiki2 test, partial corpus (%). Single retrieval: one search,
+top-50 passages in the prompt. ReAct: the model searches while it reasons, top-3 passages per Search step.
 
-| Run | Retriever | Reader dtype | EM | SM1% | SM5% | SM10% | SM20% | SM50% | SM90% |
-|---|---|---|---|---|---|---|---|---|---|
-| Paper, Table 8 | E5 | bf16 | 3.42 | – | – | 7.00 | 8.82 | 14.47 | 24.32 |
-| Ours, csedu | Contriever | fp16 | 2.07 | 3.74 | 4.53 | 5.09 | 6.20 | 11.13 | 18.52 |
+| Method | Run | Retriever | Reader dtype | EM | SM1% | SM5% | SM10% | SM20% | SM50% | SM90% |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Single retrieval | Paper, Table 8 | E5 | bf16 | 3.42 | – | – | 7.00 | 8.82 | 14.47 | 24.32 |
+| Single retrieval | Ours, csedu | Contriever | fp16 | 2.07 | 3.74 | 4.53 | 5.09 | 6.20 | 11.13 | 18.52 |
+| ReAct | Paper, Table 8 | E5 | bf16 | 4.53 | – | – | 15.58 | 17.01 | 24.32 | 38.79 |
+| ReAct | Ours, csedu | Contriever | fp16 | 4.29 | 9.06 | 12.64 | 13.28 | 14.31 | 19.24 | 29.33 |
 
-Ours: 1258 queries; 581 outputs without an `<answer>` tag (scored as wrong, as in the official code);
-1 output cut off at `max_new_tokens=1024`; 3.3 s per query on 2× RTX 2080 Ti.
+Ours, both methods: 1258 queries, 2× RTX 2080 Ti, temperature 0.7, one run each.
+
+- Single retrieval: 581 outputs without an `<answer>` tag (scored as wrong, as in the official code);
+  1 output cut off at `max_new_tokens=1024`; 3.3 s per query.
+- ReAct: 2.67 searches and 4.59 LLM calls per query on average; 6 queries finished without searching;
+  0 queries reached the 20-step limit (forced finish); 23.0 s per query; the full run took 8 h 08 min.
+
+Entity-level recall (%) of the passages retrieved by ReAct. The rankings of all Search steps of a query are
+merged by rank (rank 1 of every step, then rank 2, ...; duplicates skipped), as in the official
+`_interleave_rank_lists_with_dedup`; queries without a search count as 0. "All" is recall over the whole merged list.
+
+| Run | R@3 | R@10 | R@100 | R@1000 | All |
+|---|---|---|---|---|---|
+| ReAct, ours, csedu | 1.05 | 2.68 | 11.39 | 33.77 | 39.85 |
 
 ### Quick start (csedu cluster)
 
@@ -149,6 +164,9 @@ so later steps can be changed and re-run without repeating retrieval.
 - Answers are scored with the official `soft_exact_match`: EM and SM at 1/5/10/20/50/90%, `decimals=3`, as in `run_evalution.py`.
 - The reader runs in fp16 on csedu (`--dtype float16`, split over 2 GPUs); the official setting is bf16, which the RTX 2080 Ti does not support.
 - As in the official `get_answer`, only the `<answer>` tag is parsed; an output without it has no answer and is scored as wrong.
+- ReAct follows the official `ReAct_Model`: same instruction and 6 examples, stop strings, action parsing, 20-step limit,
+  forced finish, top-3 passages per step out of 1000 retrieved; a unit test runs the official class and ours on the same
+  model outputs and compares every call.
 
 ### Development
 
@@ -179,7 +197,7 @@ Run all three before committing. Settings are in `pyproject.toml`.
 | 步骤 | 内容 | 状态 |
 |---|---|---|
 | 1.1 | 检索复现（Table 4：R@3/10/100/1000） | 完成 |
-| 1.2 | 单次检索 + 阅读器，以及一种 DRA（Table 8：EM、SM 10/20/50/90%） | 单次检索完成；ReAct 进行中 |
+| 1.2 | 单次检索 + 阅读器，以及一种 DRA（Table 8：EM、SM 10/20/50/90%） | 完成（单次检索和 ReAct） |
 | 2 | 自己的 DRA 方法 | 未开始 |
 
 ### 结果
@@ -192,15 +210,29 @@ Run all three before committing. Settings are in `pyproject.toml`.
 | 本组，csedu | partial | 官方（HF `mahtaa/trqa_experiments`） | 0.93 | 2.18 | 8.39 | 26.30 |
 | 本组，本地 | partial | 用官方 `index_builder.py` 自建 | 0.93 | 2.18 | 8.39 | 26.31 |
 
-**Step 1.2**：单次检索（Top-50 段落）+ Qwen2.5-7B-Instruct，Wiki2 测试集，partial 语料（%）：
+**Step 1.2**：阅读器 Qwen2.5-7B-Instruct，Wiki2 测试集，partial 语料（%）。单次检索：检索一次，
+Top-50 段落放进 prompt。ReAct：模型边推理边检索，每个 Search 步骤给 Top-3 段落。
 
-| 运行 | 检索模型 | 阅读器精度 | EM | SM1% | SM5% | SM10% | SM20% | SM50% | SM90% |
-|---|---|---|---|---|---|---|---|---|---|
-| 论文 Table 8 | E5 | bf16 | 3.42 | – | – | 7.00 | 8.82 | 14.47 | 24.32 |
-| 本组，csedu | Contriever | fp16 | 2.07 | 3.74 | 4.53 | 5.09 | 6.20 | 11.13 | 18.52 |
+| 方法 | 运行 | 检索模型 | 阅读器精度 | EM | SM1% | SM5% | SM10% | SM20% | SM50% | SM90% |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 单次检索 | 论文 Table 8 | E5 | bf16 | 3.42 | – | – | 7.00 | 8.82 | 14.47 | 24.32 |
+| 单次检索 | 本组，csedu | Contriever | fp16 | 2.07 | 3.74 | 4.53 | 5.09 | 6.20 | 11.13 | 18.52 |
+| ReAct | 论文 Table 8 | E5 | bf16 | 4.53 | – | – | 15.58 | 17.01 | 24.32 | 38.79 |
+| ReAct | 本组，csedu | Contriever | fp16 | 4.29 | 9.06 | 12.64 | 13.28 | 14.31 | 19.24 | 29.33 |
 
-本组：1258 题；581 题输出中没有 `<answer>` 标签（与官方代码一致，按答错计）；
-1 题达到 `max_new_tokens=1024` 被截断；2 块 RTX 2080 Ti 上每题 3.3 秒。
+本组（两种方法相同）：1258 题，2 块 RTX 2080 Ti，温度 0.7，各运行一次。
+
+- 单次检索：581 题输出中没有 `<answer>` 标签（与官方代码一致，按答错计）；
+  1 题达到 `max_new_tokens=1024` 被截断；每题 3.3 秒。
+- ReAct：平均每题检索 2.67 次、调用 LLM 4.59 次；6 题没有检索就结束；
+  0 题达到 20 步上限（强制作答）；每题 23.0 秒；全量运行用时 8 小时 08 分。
+
+ReAct 检索到的段落的实体级召回（%）。每题所有 Search 步骤的排名按名次交错合并（各步第 1 名，再各步第 2 名……；
+重复的跳过），与官方 `_interleave_rank_lists_with_dedup` 一致；没有检索的题按 0 计。"全部"是合并列表全部结果上的召回。
+
+| 运行 | R@3 | R@10 | R@100 | R@1000 | 全部 |
+|---|---|---|---|---|---|
+| ReAct，本组，csedu | 1.05 | 2.68 | 11.39 | 33.77 | 39.85 |
 
 ### 快速开始（csedu 集群）
 
@@ -306,6 +338,8 @@ python scripts/05_generate_answers.py --method react   # ReAct，运行中检索
 - 答案用官方 `soft_exact_match` 判分：EM 和 SM 1/5/10/20/50/90%，`decimals=3`，与 `run_evalution.py` 一致。
 - 阅读器在 csedu 上用 fp16 运行（`--dtype float16`，分在 2 块 GPU 上）；官方设定是 bf16，RTX 2080 Ti 不支持。
 - 与官方 `get_answer` 一致，只解析 `<answer>` 标签；没有标签的输出没有答案，按答错算。
+- ReAct 按官方 `ReAct_Model`：相同的说明和 6 个示例、停止字符串、动作解析、20 步上限、强制作答、
+  每步从检索到的 1000 个中给 Top-3；单元测试让官方类和我们的类处理相同的模型输出，逐次比对每一次调用。
 
 ### 开发
 
